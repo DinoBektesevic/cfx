@@ -89,12 +89,12 @@ class Options(ConfigField):
     ValueError: Expected 'turbo' to be one of ('fast', 'balanced', 'thorough')
     """
 
-    def __init__(self, options, doc, default_value=None, static=False, env=None):
+    def __init__(self, options, doc, default_value=None, static=False, env=None):  # noqa: D107, E501
         self.options = options
         defaultval = options[0] if default_value is None else default_value
         super().__init__(defaultval, doc, static=static, env=env)
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if value not in self.options:
             raise ValueError(f"Expected {value!r} to be one of {self.options}")
 
@@ -132,12 +132,12 @@ class MultiOptions(ConfigField):
     ...     )
     """
 
-    def __init__(self, options, doc, default_value=None, static=False, env=None):
+    def __init__(self, options, doc, default_value=None, static=False, env=None):  # noqa: D102, D107, E501
         self.options = set(options)
         defaultval = set() if default_value is None else default_value
         super().__init__(defaultval, doc, static=static, env=env)
 
-    def __set__(self, obj, value):
+    def __set__(self, obj, value):  # noqa: D105
         # Coerce list to set so that a round-trip through YAML/TOML (which
         # deserializes sequences as lists) does not fail validation.
         if isinstance(value, list):
@@ -147,13 +147,14 @@ class MultiOptions(ConfigField):
     def _from_env_str(self, s):
         return {item.strip() for item in s.split(",") if item.strip()}
 
-    def validate(self, value):
+    # docs are inherited
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, (set, frozenset)):
             raise TypeError(f"Expected a set, got {type(value).__name__!r}")
         extras = set(value) - self.options
         if extras:
             raise ValueError(
-                f"Values {extras!r} are not in the allowed set {self.options!r}"
+                f"Expected {self.options!r}, got {extras!r} instead"
             )
 
 
@@ -195,13 +196,13 @@ class String(ConfigField):
         predicate=None,
         static=False,
         env=None,
-    ):
+    ):  # noqa: D102, D107
         self.minsize = minsize
         self.maxsize = maxsize
         self.predicate = predicate
         super().__init__(default_value, doc, static=static, env=env)
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, str):
             raise TypeError(f"Expected a str, got {type(value).__name__!r}")
         if len(value) < self.minsize:
@@ -215,7 +216,9 @@ class String(ConfigField):
                 f"got {len(value)}"
             )
         if self.predicate is not None and not self.predicate(value):
-            raise ValueError(f"Value {value!r} failed predicate {self.predicate!r}")
+            raise ValueError(
+                f"Value {value!r} failed predicate {self.predicate!r}"
+            )
 
 
 class Scalar(ConfigField):
@@ -254,7 +257,7 @@ class Scalar(ConfigField):
             maxval=None,
             static=False,
             env=None,
-    ):
+    ):  # noqa: D102, D107
         self.minval = minval
         self.maxval = maxval
         super().__init__(default_value, doc, static=static, env=env)
@@ -271,13 +274,19 @@ class Scalar(ConfigField):
                 f"Cannot parse {s!r} as a number (env var {self.env!r})"
             )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, numbers.Number):
-            raise TypeError(f"Expected a numeric value, got {type(value).__name__!r}")
+            raise TypeError(
+                f"Expected a numeric value, got {type(value).__name__!r}"
+            )
         if self.minval is not None and value < self.minval:
-            raise ValueError(f"Expected value >= {self.minval!r}, got {value!r}")
+            raise ValueError(
+                f"Expected value >= {self.minval!r}, got {value!r}"
+            )
         if self.maxval is not None and value > self.maxval:
-            raise ValueError(f"Expected value <= {self.maxval!r}, got {value!r}")
+            raise ValueError(
+                f"Expected value <= {self.maxval!r}, got {value!r}"
+            )
 
 
 class Int(ConfigField):
@@ -315,7 +324,7 @@ class Int(ConfigField):
             maxval=None,
             static=False,
             env=None,
-    ):
+    ):  # noqa: D102, D107
         self.minval = minval
         self.maxval = maxval
         super().__init__(default_value, doc, static=static, env=env)
@@ -328,13 +337,17 @@ class Int(ConfigField):
                 f"Cannot parse {s!r} as int (env var {self.env!r})"
             )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, int):
             raise TypeError(f"Expected an int, got {type(value).__name__!r}")
         if self.minval is not None and value < self.minval:
-            raise ValueError(f"Expected value >= {self.minval!r}, got {value!r}")
+            raise ValueError(
+                f"Expected value >= {self.minval!r}, got {value!r}"
+            )
         if self.maxval is not None and value > self.maxval:
-            raise ValueError(f"Expected value <= {self.maxval!r}, got {value!r}")
+            raise ValueError(
+                f"Expected value <= {self.maxval!r}, got {value!r}"
+            )
 
 
 class Float(ConfigField):
@@ -372,7 +385,7 @@ class Float(ConfigField):
             maxval=None,
             static=False,
             env=None,
-    ):
+    ):  # noqa: D102, D107
         self.minval = minval
         self.maxval = maxval
         super().__init__(default_value, doc, static=static, env=env)
@@ -385,13 +398,17 @@ class Float(ConfigField):
                 f"Cannot parse {s!r} as float (env var {self.env!r})"
             )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, (float, int)):
             raise TypeError(f"Expected a float, got {type(value).__name__!r}")
         if self.minval is not None and value < self.minval:
-            raise ValueError(f"Expected value >= {self.minval!r}, got {value!r}")
+            raise ValueError(
+                f"Expected value >= {self.minval!r}, got {value!r}"
+            )
         if self.maxval is not None and value > self.maxval:
-            raise ValueError(f"Expected value <= {self.maxval!r}, got {value!r}")
+            raise ValueError(
+                f"Expected value <= {self.maxval!r}, got {value!r}"
+            )
 
 
 class Bool(ConfigField):
@@ -423,7 +440,7 @@ class Bool(ConfigField):
             f"Use 1/0, true/false, yes/no, or on/off."
         )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, bool):
             raise TypeError(f"Expected a bool, got {type(value).__name__!r}")
 
@@ -463,11 +480,11 @@ class Path(ConfigField):
             must_exist=False,
             static=False,
             env=None,
-    ):
+    ):  # noqa: D102, D107
         self.must_exist = must_exist
         super().__init__(default_value, doc, static=static, env=env)
 
-    def __set__(self, obj, value):
+    def __set__(self, obj, value):  # noqa: D105
         # Re-check static here because we bypass super().__set__ (which carries
         # the static guard) in order to coerce the value before storing.
         if self.static:
@@ -475,14 +492,16 @@ class Path(ConfigField):
         try:
             value = pathlib.Path(value)
         except TypeError:
-            raise TypeError(f"Expected a path-like value, got {type(value).__name__!r}")
+            raise TypeError(
+                f"Expected a path-like value, got {type(value).__name__!r}"
+            )
         self.validate(value)
         setattr(obj, self.private_name, value)
 
     def _from_env_str(self, s):
         return pathlib.Path(s)
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, pathlib.Path):
             return
         if self.must_exist and not value.exists():
@@ -523,7 +542,7 @@ class Seed(ConfigField):
                 f"Use an integer or 'none'."
             )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if value is not None and not isinstance(value, int):
             raise TypeError(
                 f"Expected an int or None for a seed value, "
@@ -557,7 +576,7 @@ class Range(ConfigField):
         If ``min >= max``.
     """
 
-    def __set__(self, obj, value):
+    def __set__(self, obj, value):  # noqa: D105
         # Coerce list to tuple so that a round-trip through YAML/TOML (which
         # deserializes sequences as lists) does not change the stored type.
         if isinstance(value, list):
@@ -566,11 +585,13 @@ class Range(ConfigField):
 
     def _from_env_str(self, s):
         parts = s.split(",")
+
         if len(parts) != 2:
             raise ValueError(
                 f"Cannot parse {s!r} as range (env var {self.env!r}). "
                 f"Expected 'min,max' (e.g. '0.0,1.0')."
             )
+
         def _num(x):
             x = x.strip()
             try:
@@ -585,13 +606,13 @@ class Range(ConfigField):
                     )
         return (_num(parts[0]), _num(parts[1]))
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         try:
             lo, hi = value
         except (TypeError, ValueError):
             raise TypeError(f"Expected a (min, max) pair, got {value!r}")
-        if not (isinstance(lo, numbers.Number) and isinstance(hi, numbers.Number)):
-            raise TypeError(f"Range bounds must be numeric, got {lo!r} and {hi!r}")
+        if not (isinstance(lo, numbers.Number) and isinstance(hi, numbers.Number)):  # noqa: E501
+            raise TypeError(f"Range bounds must be numeric, got {lo!r} and {hi!r}")  # noqa: E501
         if lo >= hi:
             raise ValueError(f"Expected min < max, got ({lo!r}, {hi!r})")
 
@@ -634,7 +655,7 @@ class List(ConfigField):
         maxlen=None,
         static=False,
         env=None,
-    ):
+    ):  # noqa: D102, D107
         self.element_type = element_type
         self.minlen = minlen
         self.maxlen = maxlen
@@ -649,16 +670,16 @@ class List(ConfigField):
             pass
         return [item.strip() for item in s.split(",") if item.strip()]
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, list):
             raise TypeError(f"Expected a list, got {type(value).__name__!r}")
         if self.minlen is not None and len(value) < self.minlen:
             raise ValueError(
-                f"Expected list of at least {self.minlen} elements, got {len(value)}"
+                f"Expected at least {self.minlen} elements, got {len(value)}"
             )
         if self.maxlen is not None and len(value) > self.maxlen:
             raise ValueError(
-                f"Expected list of at most {self.maxlen} elements, got {len(value)}"
+                f"Expected at most {self.maxlen} elements, got {len(value)}"
             )
         if self.element_type is not None:
             bad = [el for el in value if not isinstance(el, self.element_type)]
@@ -700,7 +721,7 @@ class Dict(ConfigField):
                 f"Cannot parse {s!r} as JSON dict (env var {self.env!r})"
             )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, dict):
             raise TypeError(f"Expected a dict, got {type(value).__name__!r}")
 
@@ -732,9 +753,11 @@ class Date(ConfigField):
                 f"Cannot parse {s!r} as ISO date (env var {self.env!r})"
             )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, datetime.date):
-            raise TypeError(f"Expected a datetime.date, got {type(value).__name__!r}")
+            raise TypeError(
+                f"Expected a datetime.date, got {type(value).__name__!r}"
+            )
 
 
 class Time(ConfigField):
@@ -756,7 +779,7 @@ class Time(ConfigField):
         If the value is not a `datetime.time`.
     """
 
-    def __set__(self, obj, value):
+    def __set__(self, obj, value):  # noqa: D105
         # Coerce ISO-format string to datetime.time so that round-trips through
         # to_dict/from_dict work: datetime.time has no native YAML safe
         # representation, so _serialize_value emits an ISO string instead.
@@ -772,9 +795,11 @@ class Time(ConfigField):
                 f"Cannot parse {s!r} as ISO time (env var {self.env!r})"
             )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, datetime.time):
-            raise TypeError(f"Expected a datetime.time, got {type(value).__name__!r}")
+            raise TypeError(
+                f"Expected a datetime.time, got {type(value).__name__!r}"
+            )
 
 
 class DateTime(ConfigField):
@@ -805,7 +830,7 @@ class DateTime(ConfigField):
                 f"Cannot parse {s!r} as ISO datetime (env var {self.env!r})"
             )
 
-    def validate(self, value):
+    def validate(self, value):  # noqa: D102
         if not isinstance(value, datetime.datetime):
             raise TypeError(
                 f"Expected a datetime.datetime, got {type(value).__name__!r}"

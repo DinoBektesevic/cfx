@@ -21,45 +21,6 @@ on the class that uses them, using Python descriptors::
     cfg2 = SearchConfig.from_dict(d)
 """
 
-from .config_field import ConfigField
-from .config import Config, FrozenConfigError
-from .types import (
-    Any,
-    Bool,
-    Date,
-    DateTime,
-    Dict,
-    Float,
-    Int,
-    List,
-    MultiOptions,
-    Options,
-    Path,
-    Range,
-    Scalar,
-    Seed,
-    String,
-    Time,
-)
-
-__all__ = [
-    "Config",
-    "ConfigField",
-    "FrozenConfigError",
-    "Any",
-    "Bool",
-    "Date",
-    "DateTime",
-    "Dict",
-    "Float",
-    "Int",
-    "List",
-    "MultiOptions",
-    "Options",
-    "Path",
-    "Range",
-    "Scalar",
-    "Seed",
-    "String",
-    "Time",
-]
+from .config_field import *
+from .config import *
+from .types import *

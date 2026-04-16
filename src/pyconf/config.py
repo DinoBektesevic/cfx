@@ -9,7 +9,43 @@ import warnings
 import datetime
 import pathlib
 
+from .display import as_table, as_inline_string
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+try:
+    import tomli_w
+except ImportError:
+    tomli_w = None
+
+# TODO: this is all a built-in from Py3.11 so we can count on it existing from
+# end of 2026 onwards
+try:
+    import tomllib
+except ImportError:
+    try:
+        import tomli as tomllib
+    except ImportError:
+        tomllib = None
+
 from .config_field import ConfigField
+
+
+__all__ = [
+    "Config",
+    "FrozenConfigError"
+]
+
+
+class FrozenConfigError(AttributeError):
+    """Raised when attempting to set a field on a frozen `Config` instance.
+
+    Inherits from `AttributeError` so that standard attribute-protection
+    machinery recognises it correctly.
+    """
 
 
 class ConfigMeta(type):
@@ -91,10 +127,10 @@ class ConfigMeta(type):
             nested[instance.confid] = instance
         return nested
 
-    def __new__(cls, cls_name, bases, attrs, **kwargs):
-        cls_fields = {k: v for k, v in attrs.items() if isinstance(v, ConfigField)}
+    def __new__(cls, cls_name, bases, attrs, **kwargs):  # noqa: D102
+        cls_fields = {k: v for k, v in attrs.items() if isinstance(v, ConfigField)}  # noqa: E501
         components = kwargs.pop("components", None)
-        method = kwargs.pop("method", "nested" if components is not None else "unroll")
+        method = kwargs.pop("method", "nested" if components is not None else "unroll")  # noqa: E501
         if "confid" not in attrs:
             attrs["confid"] = cls_name.lower()
 
@@ -167,10 +203,10 @@ class Config(metaclass=ConfigMeta):
     Automatically set as the lowercase version of the class name.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs):  # noqa: D107
         # Nested mode: instantiate each component class fresh so that different
         # parent instances do not share the same sub-config objects.
-        for confid, sub_cls in getattr(type(self), "_nested_classes", {}).items():
+        for confid, sub_cls in getattr(type(self), "_nested_classes", {}).items():  # noqa: E501
             object.__setattr__(self, confid, sub_cls())
         # Flat/unroll/inherited mode: initialize stored values for non-static,
         # non-callable fields. Callable defaults are left unset so that
@@ -182,113 +218,9 @@ class Config(metaclass=ConfigMeta):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    def keys(self):
-        """Return the names of all declared fields.
-
-        Returns
-        -------
-        `collections.abc.KeysView`
-            Field names in declaration order.
-        """
-        return self.defaults.keys()
-
-    def values(self):
-        """Return the current values of all declared fields.
-
-        Returns
-        -------
-        `list`
-            Current field values in declaration order.
-        """
-        return [getattr(self, k) for k in self.keys()]
-
-    def items(self):
-        """Return (name, value) pairs for all declared fields.
-
-        Returns
-        -------
-        `list` of `tuple`
-            ``(field_name, current_value)`` pairs in declaration order.
-        """
-        return [(k, getattr(self, k)) for k in self.keys()]
-
-    def __getitem__(self, key):
-        """Return a field value using dict-style access.
-
-        Parameters
-        ----------
-        key : `str`
-            Field name.
-
-        Returns
-        -------
-        `object`
-            Current value of the field.
-
-        Raises
-        ------
-        KeyError
-            If the field name does not exist.
-        """
-        if key not in self.defaults:
-            raise KeyError(key)
-        return getattr(self, key)
-
-    def __setitem__(self, key, value):
-        """Set a field value using dict-style access.
-
-        Routes through the descriptor's ``validate`` method exactly as
-        dot-access assignment does.
-
-        Parameters
-        ----------
-        key : `str`
-            Field name.
-        value : `object`
-            New value.
-
-        Raises
-        ------
-        KeyError
-            If the field name does not exist.
-        """
-        if key not in self.defaults:
-            raise KeyError(key)
-        setattr(self, key, value)
-
-    def __contains__(self, key):
-        """Return whether a field name exists on this config.
-
-        Parameters
-        ----------
-        key : `str`
-            Field name to check.
-
-        Returns
-        -------
-        `bool`
-        """
-        return key in self.defaults
-
-    def __eq__(self, other):
-        """Return whether two config instances have equal field values.
-
-        Parameters
-        ----------
-        other : `Config`
-            Another config instance to compare against.
-
-        Returns
-        -------
-        `bool`
-            `True` if both configs have identical field values, `False`
-            otherwise. Returns `NotImplemented` if ``other`` is not a
-            `Config`.
-        """
-        if not isinstance(other, Config):
-            return NotImplemented
-        return dict(self.items()) == dict(other.items())
-
+    ###########################################################################
+    #                The may-need-to-be-reimplemented methods
+    ###########################################################################
     def validate(self):
         """Validate cross-field constraints.
 
@@ -313,20 +245,69 @@ class Config(metaclass=ConfigMeta):
         ...             raise ValueError("high must be greater than low")
         """
 
-    def freeze(self):
-        """Make this config instance read-only.
+    ###########################################################################
+    #                    Dunder methods
+    ###########################################################################
+    def __str__(self):  # noqa: D105
+        return as_table(self, format="text")
 
-        After calling `freeze`, any attempt to set a field raises
-        `FrozenConfigError`.
-        """
-        object.__setattr__(self, "_frozen", True)
+    def __repr__(self):  # noqa: D105
+        return as_inline_string(self)
 
-    def __setattr__(self, name, value):
+    def _repr_html_(self):  # noqa: D105
+        return as_table(self, format="html")
+
+    def __setattr__(self, name, value):  # noqa: D105
         if getattr(self, "_frozen", False) and name in self.defaults:
             raise FrozenConfigError(
                 f"Cannot set field {name!r} on a frozen config."
             )
         super().__setattr__(name, value)
+
+    def __getitem__(self, key):  # noqa: D105
+        if key not in self.defaults:
+            raise KeyError(key)
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):  # noqa: D105
+        if key not in self.defaults:
+            raise KeyError(key)
+        setattr(self, key, value)
+
+    def __contains__(self, key):  # noqa: D105
+        return key in self.defaults
+
+    def __eq__(self, other):  # noqa: D105
+        if not isinstance(other, Config):
+            return NotImplemented
+        return dict(self.items()) == dict(other.items())
+
+    ###########################################################################
+    #                    Dict/Set-like methods
+    ###########################################################################
+    def keys(self):
+        """Return a set-like object providing a view on the dict's keys."""
+        return self.defaults.keys()
+
+    def values(self):
+        """Return the current values of all declared fields.
+
+        Returns
+        -------
+        `list`
+            Current field values in declaration order.
+        """
+        return [getattr(self, k) for k in self.keys()]
+
+    def items(self):
+        """Return (name, value) pairs for all declared fields.
+
+        Returns
+        -------
+        `list` of `tuple`
+            ``(field_name, current_value)`` pairs in declaration order.
+        """
+        return [(k, getattr(self, k)) for k in self.keys()]
 
     def update(self, mapping):
         """Set multiple field values from a mapping.
@@ -348,6 +329,43 @@ class Config(metaclass=ConfigMeta):
             if k not in self.defaults:
                 raise KeyError(k)
             setattr(self, k, v)
+
+    def freeze(self):
+        """Make this config instance read-only.
+
+        After calling `freeze`, any attempt to set a field raises
+        `FrozenConfigError`.
+        """
+        object.__setattr__(self, "_frozen", True)
+
+    def diff(self, other):
+        """Return fields that differ between this config and another.
+
+        Parameters
+        ----------
+        other : `Config`
+            Another config instance of the same class to compare against.
+
+        Returns
+        -------
+        `dict`
+            Mapping of field name to ``(self_value, other_value)`` for every
+            field whose value differs.
+
+        Raises
+        ------
+        TypeError
+            If ``other`` is not the same type as this config.
+        """
+        if type(other) is not type(self):
+            raise TypeError(
+                f"Cannot diff {type(self).__name__!r} with {type(other).__name__!r}"  # noqa: E501
+            )
+        return {
+            key: (this, other)
+            for (key, this), (_, other) in zip(self.items(), other.items())
+            if this != other
+        }
 
     def copy(self, **overrides):
         """Return a new instance with optionally overridden field values.
@@ -371,94 +389,35 @@ class Config(metaclass=ConfigMeta):
         """
         new = self.__class__.__new__(self.__class__)
         # Initialize nested sub-configs on the new instance first.
-        for confid, sub_cls in getattr(type(self), "_nested_classes", {}).items():
+        for confid, sub_cls in getattr(type(self), "_nested_classes", {}).items():  # noqa: E501
             object.__setattr__(new, confid, getattr(self, confid).copy())
         for k in self.keys():
             descriptor = getattr(type(self), k)
             if descriptor.static:
                 continue
-            # Only copy fields that have an explicitly stored value in __dict__.
-            # Fields absent from __dict__ have a callable default; skipping them
-            # lets the copy inherit the descriptor's factory and recompute lazily
-            # from the copy's own field values rather than baking in a snapshot.
+            # Only copy fields that have an explicitly stored value in __dict__
+            # If missing from __dict__ means it has a callable default.
+            # Skip them here allowing the copy to inherit the descriptors
+            # factory and recompute lazily from the copy's own field values
+            # I can't see how, but there's no way this won't have consequences
+            # at some point
             if descriptor.private_name in self.__dict__:
                 setattr(new, k, self.__dict__[descriptor.private_name])
         for k, v in overrides.items():
             setattr(new, k, v)
         return new
 
-    def diff(self, other):
-        """Return fields that differ between this config and another.
-
-        Parameters
-        ----------
-        other : `Config`
-            Another config instance of the same class to compare against.
-
-        Returns
-        -------
-        `dict`
-            Mapping of field name to ``(self_value, other_value)`` for every
-            field whose value differs.
-
-        Raises
-        ------
-        TypeError
-            If ``other`` is not the same type as this config.
-        """
-        if type(other) is not type(self):
-            raise TypeError(
-                f"Cannot diff {type(self).__name__!r} with {type(other).__name__!r}"
-            )
+    ###########################################################################
+    #                    Serialization
+    ###########################################################################
+    @staticmethod
+    def _strip_none(d):
+        """Recursively remove None values from a dict."""
         return {
-            k: (sv, ov)
-            for (k, sv), (_, ov) in zip(self.items(), other.items())
-            if sv != ov
+            k: (Config._strip_none(v) if isinstance(v, dict) else v)
+            for k, v in d.items()
+            if v is not None
         }
-
-    def to_dict(self):
-        """Serialize this config to a plain `dict`.
-
-        Returns
-        -------
-        `dict`
-            Mapping of field names to their current values. Nested `Config`
-            sub-objects are serialized recursively. `pathlib.Path` values are
-            serialized as strings so the result is always JSON/YAML/TOML-safe.
-
-        Warns
-        -----
-        UserWarning
-            If any field has a callable default and no explicitly stored value.
-            The serialized value is a computed snapshot; the formula is lost
-            after deserialization.
-        """
-        # Nested composition mode: iterate sub-configs by confid.
-        nested_classes = getattr(type(self), "_nested_classes", {})
-        if nested_classes:
-            return {
-                confid: getattr(self, confid).to_dict()
-                for confid in nested_classes
-            }
-
-        result = {}
-        for k in self.keys():
-            descriptor = getattr(type(self), k)
-            # Warn when serializing a callable-default field that has no stored
-            # value in __dict__. The round-tripped config will have a plain value
-            # instead of the original formula — accessing __dict__ directly is the
-            # only reliable way to distinguish "user set this" from "computed lazily".
-            if callable(descriptor.defaultval) and descriptor.private_name not in self.__dict__:
-                warnings.warn(
-                    f"Field {k!r} has a callable default and no stored value. "
-                    f"The serialized value is a snapshot; the formula will not "
-                    f"survive deserialization.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-            v = getattr(self, k)
-            result[k] = self._serialize_value(v)
-        return result
 
     @staticmethod
     def _serialize_value(v):
@@ -477,16 +436,14 @@ class Config(metaclass=ConfigMeta):
             # PosixPath / WindowsPath are not YAML/TOML serializable.
             return str(v)
         if isinstance(v, (set, frozenset)):
-            # yaml.dump uses !!set (not safe_load-readable); TOML has no set type.
-            # Sorting gives deterministic output; MultiOptions.__set__ coerces back.
+            # yaml uses !!set (not safe_load-readable); TOML has no set type.
+            # Sorting gives deterministic output
             return sorted(v, key=str)
         if isinstance(v, tuple):
-            # yaml.dump uses !!python/tuple (not safe_load-readable).
-            # Range.__set__ coerces list → tuple on the way back in.
+            # yaml uses !!python/tuple (not safe_load-readable)
             return list(v)
-        if isinstance(v, datetime.time) and not isinstance(v, datetime.datetime):
+        if isinstance(v, datetime.time) and not isinstance(v, datetime.datetime):  # noqa: E501
             # datetime.time has no native YAML safe representation.
-            # Serialize as ISO string; Time.__set__ coerces str back to time.
             return v.isoformat()
         return v
 
@@ -521,7 +478,11 @@ class Config(metaclass=ConfigMeta):
             instance = cls.__new__(cls)
             for confid, sub_cls in nested_classes.items():
                 sub_dict = mapping.get(confid, {})
-                object.__setattr__(instance, confid, sub_cls.from_dict(sub_dict, strict=strict))
+                object.__setattr__(
+                    instance,
+                    confid,
+                    sub_cls.from_dict(sub_dict, strict=strict)
+                )
             instance.validate()
             return instance
 
@@ -536,26 +497,45 @@ class Config(metaclass=ConfigMeta):
         instance.validate()
         return instance
 
-    def to_yaml(self):
-        """Serialize this config to a YAML string.
+    def to_dict(self):
+        """Serialize this config to a plain `dict`.
 
         Returns
         -------
-        `str`
-            YAML representation of the config.
+        `dict`
+            Mapping of field names to their current values. Nested `Config`
+            sub-objects are serialized recursively. `pathlib.Path` values are
+            serialized as strings so the result is always JSON/YAML/TOML-safe.
 
-        Raises
-        ------
-        ImportError
-            If ``pyyaml`` is not installed.
+        Warns
+        -----
+        UserWarning
+            If any field has a callable default and no explicitly stored value.
+            The serialized value is a computed snapshot; the formula is lost
+            after deserialization.
         """
-        try:
-            import yaml
-        except ImportError:
-            raise ImportError(
-                "YAML support requires pyyaml. Install it with: pip install pyyaml"
-            )
-        return yaml.dump(self.to_dict(), allow_unicode=True, default_flow_style=False)
+        # Nested composition mode: iterate sub-configs by confid.
+        nested_classes = getattr(type(self), "_nested_classes", {})
+        if nested_classes:
+            return {
+                confid: getattr(self, confid).to_dict()
+                for confid in nested_classes
+            }
+
+        result = {}
+        for k in self.keys():
+            descriptor = getattr(type(self), k)
+            if callable(descriptor.defaultval) and descriptor.private_name not in self.__dict__:  # noqa: E501
+                warnings.warn(
+                    f"Field {k!r} is a callable. The serialized value will be "
+                    f"a snapshot of its current value, the callable will not "
+                    f"survive deserialization.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            v = getattr(self, k)
+            result[k] = self._serialize_value(v)
+        return result
 
     @classmethod
     def from_yaml(cls, text, strict=True):
@@ -578,48 +558,32 @@ class Config(metaclass=ConfigMeta):
         ImportError
             If ``pyyaml`` is not installed.
         """
-        try:
-            import yaml
-        except ImportError:
+        if yaml is None:
             raise ImportError(
-                "YAML support requires pyyaml. Install it with: pip install pyyaml"
+                "YAML support requires pyyaml. "
+                "Install it with: pip install pyyaml"
             )
         return cls.from_dict(yaml.safe_load(text), strict=strict)
 
-    def to_toml(self):
-        """Serialize this config to a TOML string.
+    def to_yaml(self):
+        """Serialize this config to a YAML string.
 
         Returns
         -------
         `str`
-            TOML representation of the config.
+            YAML representation of the config.
 
         Raises
         ------
         ImportError
-            If ``tomli-w`` is not installed.
+            If ``pyyaml`` is not installed.
         """
-        try:
-            import tomli_w
-        except ImportError:
+        if yaml is None:
             raise ImportError(
-                "TOML write support requires tomli-w. "
-                "Install it with: pip install tomli-w"
+                "YAML support requires pyyaml. "
+                "Install it with: pip install pyyaml"
             )
-        # TOML has no null type. Strip None values so tomli_w doesn't raise.
-        # Fields with None values will be absent from the TOML output and will
-        # fall back to their class-level default when loaded — which is correct
-        # for fields like Seed(None, ...) where None is the intended default.
-        return tomli_w.dumps(self._strip_none(self.to_dict()))
-
-    @staticmethod
-    def _strip_none(d):
-        """Recursively remove None values from a dict for TOML compatibility."""
-        return {
-            k: (Config._strip_none(v) if isinstance(v, dict) else v)
-            for k, v in d.items()
-            if v is not None
-        }
+        return yaml.dump(self.to_dict(), allow_unicode=True, default_flow_style=False)  # noqa: E501
 
     @classmethod
     def from_toml(cls, text, strict=True):
@@ -643,150 +607,37 @@ class Config(metaclass=ConfigMeta):
             If neither ``tomllib`` (stdlib, Python >= 3.11) nor ``tomli``
             is available.
         """
-        try:
-            import tomllib
-        except ImportError:
-            try:
-                import tomli as tomllib
-            except ImportError:
-                raise ImportError(
-                    "TOML read support requires tomli on Python < 3.11. "
-                    "Install it with: pip install tomli"
-                )
+        if tomllib is None:
+            raise ImportError(
+                "TOML read support requires tomli on Python < 3.11. "
+                "Install it with: pip install tomli"
+            )
         return cls.from_dict(tomllib.loads(text), strict=strict)
 
-    @staticmethod
-    def _make_table(rows, max_key_width=20, max_value_width=25, max_desc_width=50):
-        """Format rows as a plain-text table with three columns.
-
-        Long cell values are wrapped at word boundaries so that no column
-        exceeds its maximum width. Multi-line rows are padded consistently.
-
-        Parameters
-        ----------
-        rows : `list` of `tuple`
-            Each tuple is ``(key, value, description)``.
-        max_key_width : `int`, optional
-            Maximum width for the Key column. Default is 20.
-        max_value_width : `int`, optional
-            Maximum width for the Value column. Default is 25.
-        max_desc_width : `int`, optional
-            Maximum width for the Description column. Default is 50.
+    def to_toml(self):
+        """Serialize this config to a TOML string.
 
         Returns
         -------
         `str`
-            A fixed-width table string.
+            TOML representation of the config.
+
+        Raises
+        ------
+        ImportError
+            If ``tomli-w`` is not installed.
         """
-        import textwrap
-
-        header = ("Key", "Value", "Description")
-        max_widths = (max_key_width, max_value_width, max_desc_width)
-
-        def wrap_cell(text, max_w):
-            """Wrap text to at most max_w chars, breaking at spaces."""
-            lines = textwrap.wrap(str(text), max_w)
-            return lines if lines else [""]
-
-        def wrap_row(row):
-            return [wrap_cell(str(row[i]), max_widths[i]) for i in range(3)]
-
-        wrapped_header = wrap_row(header)
-        wrapped_rows = [wrap_row(r) for r in rows]
-        all_wrapped = [wrapped_header] + wrapped_rows
-
-        # Actual column widths from the widest wrapped line in each column.
-        widths = [
-            max(len(line) for wr in all_wrapped for line in wr[i])
-            for i in range(3)
-        ]
-
-        sep = "-+-".join("-" * w for w in widths)
-
-        def fmt_row(wrapped_cells):
-            n = max(len(c) for c in wrapped_cells)
-            out = []
-            for i in range(n):
-                parts = [
-                    (wrapped_cells[col][i] if i < len(wrapped_cells[col]) else "").ljust(widths[col])
-                    for col in range(3)
-                ]
-                out.append(" | ".join(parts))
-            return "\n".join(out)
-
-        lines = [fmt_row(wrapped_header), sep] + [fmt_row(wr) for wr in wrapped_rows]
-        return "\n".join(lines)
-
-    def _table_rows(self):
-        """Return table rows for display.
-
-        Returns
-        -------
-        `list` of `tuple`
-            Each tuple is ``(field_name, current_value, doc_string)``.
-        """
-        return [
-            (k, getattr(self, k), getattr(type(self), k).doc)
-            for k in self.keys()
-        ]
-
-    def __str__(self):
-        nested_classes = getattr(type(self), "_nested_classes", {})
-        header = f"{self.__class__.__name__}:"
-        if self.__class__.__doc__:
-            header += f"\n{self.__class__.__doc__.strip()}"
-        if nested_classes:
-            sub_tables = "\n\n".join(
-                f"[{confid}]\n{getattr(self, confid)}" for confid in nested_classes
+        if tomli_w is None:
+            raise ImportError(
+                "TOML write support requires tomli-w. "
+                "Install it with: pip install tomli-w"
             )
-            return header + "\n" + sub_tables
-        return header + "\n" + self._make_table(self._table_rows())
-
-    def __repr__(self):
-        nested_classes = getattr(type(self), "_nested_classes", {})
-        if nested_classes:
-            pairs = ", ".join(
-                f"{confid}={getattr(self, confid)!r}" for confid in nested_classes
-            )
-        else:
-            pairs = ", ".join(f"{k}={getattr(self, k)!r}" for k in self.keys())
-        return f"{self.__class__.__name__}({pairs})"
-
-    def _repr_html_(self):
-        """Return an HTML table for Jupyter Notebook display.
-
-        Returns
-        -------
-        `str`
-            HTML string containing a styled table of field names, values,
-            and descriptions.
-        """
-        title = self.__class__.__name__
-        doc = f"<p>{self.__class__.__doc__.strip()}</p>" if self.__class__.__doc__ else ""
-        nested_classes = getattr(type(self), "_nested_classes", {})
-        if nested_classes:
-            sub_html = "".join(
-                getattr(self, confid)._repr_html_() for confid in nested_classes
-            )
-            return f"<b>{title}</b>{doc}{sub_html}"
-        rows_html = "".join(
-            f"<tr><td><code>{k}</code></td>"
-            f"<td><code>{getattr(self, k)!r}</code></td>"
-            f"<td>{getattr(type(self), k).doc}</td></tr>"
-            for k in self.keys()
-        )
-        return (
-            f"<b>{title}</b>{doc}"
-            f"<table>"
-            f"<tr><th>Key</th><th>Value</th><th>Description</th></tr>"
-            f"{rows_html}"
-            f"</table>"
-        )
-
-
-class FrozenConfigError(AttributeError):
-    """Raised when attempting to set a field on a frozen `Config` instance.
-
-    Inherits from `AttributeError` so that standard attribute-protection
-    machinery recognises it correctly.
-    """
+        # TOML has no null type. Strip None values so tomli_w doesn't raise.
+        # Fields with None values will be absent from the TOML output and will
+        # fall back to their class-level default when loaded — which is correct
+        # for fields like Seed(None, ...) where None is the intended default.
+        # Now, since this is a config and not a generic data structure that
+        # needs to persist values/collections and whatnot, I'm hoping this is
+        # never an actual problem and that fields that need None's as defaults
+        # just default to None's. But I guess we'll see.
+        return tomli_w.dumps(self._strip_none(self.to_dict()))

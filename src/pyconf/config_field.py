@@ -6,8 +6,10 @@ directly on `Config` class definitions. Subclass `ConfigField` and override
 `ConfigField.validate` to add type or value constraints.
 """
 
-import numbers
 import os
+
+
+__all__ = ["ConfigField"]
 
 
 class ConfigField:
@@ -65,7 +67,7 @@ class ConfigField:
     'something else'
     """
 
-    def __init__(self, default_value, doc, static=False, env=None):
+    def __init__(self, default_value, doc, static=False, env=None):  # noqa: D107, E501
         self.defaultval = default_value
         self.doc = doc
         self.static = static
@@ -73,6 +75,81 @@ class ConfigField:
         if not callable(default_value):
             self.validate(default_value)
 
+    ###########################################################################
+    #                The may-need-to-be-reimplemented methods
+    # Ideally, I would have made these methods a abc.abstracmethod, but they
+    # have very reasonable default implementations so it's not obvious I should
+    ###########################################################################
+    def _from_env_str(self, s):
+        """Parse a raw environment variable string into this field's type.
+
+        Override in subclasses to coerce the raw string to the appropriate
+        type for a particular ConfigField. The default implementation return
+        the unchanged string.
+
+        Called by ``__get__`` when ``env`` kwarg is set and the var is present
+        in the environment but the instance has no set value.
+        The result is then passed to `validate`.
+
+        Parameters
+        ----------
+        s : `str`
+            Raw string value from ``os.environ``.
+
+        Returns
+        -------
+        `object`
+            The coerced value, ready to pass to `validate`.
+        """
+        return s
+
+    def validate(self, value):
+        """Validate a value against this field's constraints.
+
+        Override in subclasses to enforce correct type or range of values.
+        Raise `TypeError` for wrong type, and `ValueError` for out-of-range
+        error. The base implementation accepts any value.
+
+        Parameters
+        ----------
+        value : `object`
+            The value to validate.
+
+        Raises
+        ------
+        TypeError
+            If the value has the wrong type.
+        ValueError
+            If the value is outside the allowed range or set.
+        """
+        return True
+
+    ###########################################################################
+    #                Dunder methods
+    ###########################################################################
+    def __repr__(self):  # noqa: D105
+        env_part = f", env={self.env!r}" if self.env is not None else ""
+        return (
+            f"{self.__class__.__name__}("
+            f"name={self.public_name!r}, "
+            f"default={self.defaultval!r}, "
+            f"doc={self.doc!r}"
+            f"{env_part})"
+        )
+
+    def __str__(self):  # noqa: D105
+        env_part = f", env={self.env!r}" if self.env is not None else ""
+        return (
+            f"{self.__class__.__name__}("
+            f"name={self.public_name!r}, "
+            f"default={self.defaultval!r}, "
+            f"doc={self.doc!r}"
+            f"{env_part})"
+        )
+
+    ###########################################################################
+    #                Descriptor protocol dunders
+    ###########################################################################
     def __set_name__(self, owner, name):
         """Record the attribute name assigned by the owning class.
 
@@ -156,67 +233,3 @@ class ConfigField:
             raise AttributeError("Cannot set a static config field.")
         self.validate(value)
         setattr(obj, self.private_name, value)
-
-    def _from_env_str(self, s):
-        """Parse a raw environment variable string into this field's type.
-
-        Called by ``__get__`` when ``env`` is set and the named variable is
-        present in the environment but no explicit value has been stored on the
-        instance. The result is then passed to `validate` before being returned.
-
-        Override in subclasses to coerce the raw string to the appropriate
-        type. The base implementation returns the string unchanged, which is
-        correct for `ConfigField` (untyped) and `String`.
-
-        Parameters
-        ----------
-        s : `str`
-            Raw string value from ``os.environ``.
-
-        Returns
-        -------
-        `object`
-            The coerced value, ready to pass to `validate`.
-        """
-        return s
-
-    def validate(self, value):
-        """Validate a value against this field's constraints.
-
-        The base implementation accepts any value. Override in subclasses to
-        enforce type or range restrictions. Raise `TypeError` for wrong types
-        and `ValueError` for out-of-range values.
-
-        Parameters
-        ----------
-        value : `object`
-            The value to validate.
-
-        Raises
-        ------
-        TypeError
-            If the value has the wrong type.
-        ValueError
-            If the value is outside the allowed range or set.
-        """
-        return True
-
-    def __repr__(self):
-        env_part = f", env={self.env!r}" if self.env is not None else ""
-        return (
-            f"{self.__class__.__name__}("
-            f"name={self.public_name!r}, "
-            f"default={self.defaultval!r}, "
-            f"doc={self.doc!r}"
-            f"{env_part})"
-        )
-
-    def __str__(self):
-        env_part = f", env={self.env!r}" if self.env is not None else ""
-        return (
-            f"{self.__class__.__name__}("
-            f"name={self.public_name!r}, "
-            f"default={self.defaultval!r}, "
-            f"doc={self.doc!r}"
-            f"{env_part})"
-        )
