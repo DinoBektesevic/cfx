@@ -277,7 +277,7 @@ class Config(metaclass=ConfigMeta):
         setattr(self, key, value)
 
     def __contains__(self, key):  # noqa: D105
-        return key in self._fields or key in getattr(type(self), "_nested_classes", {})
+        return key in self._fields or key in getattr(type(self), "_nested_classes", {})  # noqa: E501
 
     def __eq__(self, other):  # noqa: D105
         if not isinstance(other, Config):
@@ -578,7 +578,11 @@ class Config(metaclass=ConfigMeta):
                 "YAML support requires pyyaml. "
                 "Install it with: pip install pyyaml"
             )
-        return yaml.dump(self.to_dict(), allow_unicode=True, default_flow_style=False)  # noqa: E501
+        return yaml.dump(
+            self.to_dict(),
+            allow_unicode=True,
+            default_flow_style=False
+        )
 
     @classmethod
     def from_toml(cls, text, strict=True):
@@ -780,7 +784,7 @@ class Config(metaclass=ConfigMeta):
             )
         config_file_option = click.option(
             "--config-file", default=None,
-            help="Optional YAML or TOML config file. Other flags override file values.",
+            help="Optional YAML or TOML config file. Other flags override file values.",  # noqa: E501
         )
         options = [config_file_option, *cls._collect_click_options()]
 
@@ -812,7 +816,7 @@ class Config(metaclass=ConfigMeta):
         """
         instance = cls()
 
-        # Double underscores encode dots in click param names; translate before routing.
+        # Double underscores encode dots in click param names, so translate it
         renamed = {k.replace("__", "."): v for k, v in params.items()}
 
         # Load from file if provided, otherwise start from class defaults.

@@ -19,7 +19,7 @@ yaml = ["pyyaml"]
 toml = ["tomli-w"]
 click = ["click"]
 all = ["pyyaml", "tomli-w", "click"]
-test = ["pytest", "pyyaml", "tomli-w", "click"]
+test = ["pytest", "flake8", "pyyaml", "tomli-w", "click"]
 docs = [
     "sphinx",
     "sphinx-autoapi",
@@ -41,7 +41,7 @@ package = "cfx"
 package_dir = "src"
 filename = "CHANGELOG.md"
 directory = "changelog"
-issue_format = "https://github.com/DinoBektesevic/pyconf/issues/{issue}"
+issue_format = "https://github.com/DinoBektesevic/cfx/issues/{issue}"
 
 [[tool.towncrier.type]]
 directory = "feature"

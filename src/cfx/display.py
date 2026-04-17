@@ -214,8 +214,8 @@ def make_table(rows, format="text", max_key_width=20, max_value_width=25,
     """
     if format == "html":
         header_row = wrap_row([
-            wrap_cell("Key",         tag="th"),
-            wrap_cell("Value",       tag="th"),
+            wrap_cell("Key", tag="th"),
+            wrap_cell("Value", tag="th"),
             wrap_cell("Description", tag="th"),
         ])
         body = "".join(
@@ -285,7 +285,9 @@ def as_table(cfg, format="text"):
     if cfg._fields:
         parts.append(make_table(table_rows(cfg), format="text"))
     for confid in nested_classes:
-        parts.append(f"[{confid}]\n{as_table(getattr(cfg, confid), format='text')}")
+        parts.append(
+            f"[{confid}]\n{as_table(getattr(cfg, confid), format='text')}"
+        )
     return header + "\n" + "\n\n".join(parts)
 
 
@@ -304,5 +306,5 @@ def as_inline_string(cfg):
     """
     nested_classes = getattr(type(cfg), "_nested_classes", {})
     parts = [f"{k}={getattr(cfg, k)!r}" for k in cfg.keys()]
-    parts += [f"{c}={as_inline_string(getattr(cfg, c))}" for c in nested_classes]
+    parts += [f"{c}={as_inline_string(getattr(cfg, c))}" for c in nested_classes]  # noqa: E501
     return f"{type(cfg).__name__}({', '.join(parts)})"
