@@ -80,21 +80,22 @@ class ConfigField:
     # Ideally, I would have made these methods a abc.abstracmethod, but they
     # have very reasonable default implementations so it's not obvious I should
     ###########################################################################
-    def _from_env_str(self, s):
-        """Parse a raw environment variable string into this field's type.
+    def from_string(self, s):
+        """Parse a raw string into this field's type.
 
         Override in subclasses to coerce the raw string to the appropriate
-        type for a particular ConfigField. The default implementation return
+        type for a particular `ConfigField`. The default implementation returns
         the unchanged string.
 
-        Called by ``__get__`` when ``env`` kwarg is set and the var is present
-        in the environment but the instance has no set value.
-        The result is then passed to `validate`.
+        Called by ``__get__`` when ``env`` is set and the variable is present
+        in the environment but the instance has no explicitly stored value, and
+        by the CLI integration as the argparse ``type=`` callable. The result
+        is then passed to `validate`.
 
         Parameters
         ----------
         s : `str`
-            Raw string value from ``os.environ``.
+            Raw string value.
 
         Returns
         -------
@@ -102,6 +103,25 @@ class ConfigField:
             The coerced value, ready to pass to `validate`.
         """
         return s
+
+    def to_string(self, value):
+        """Format a field value as a human-readable string for display.
+
+        Called by the display layer when rendering the config table. Override
+        in subclasses to produce cleaner output than Python's default
+        ``str()``. The default implementation returns ``str(value)``.
+
+        Parameters
+        ----------
+        value : `object`
+            The current field value.
+
+        Returns
+        -------
+        s : `str`
+            Display string for the value.
+        """
+        return str(value)
 
     def validate(self, value):
         """Validate a value against this field's constraints.
@@ -206,7 +226,7 @@ class ConfigField:
             if self.env is not None:
                 raw = os.environ.get(self.env)
                 if raw is not None:
-                    value = self._from_env_str(raw)
+                    value = self.from_string(raw)
                     self.validate(value)
                     return value
             if callable(self.defaultval):

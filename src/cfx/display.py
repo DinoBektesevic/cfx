@@ -178,7 +178,10 @@ def table_rows(cfg):
     -------
     rows: `list[tuple]`
     """
-    return [(k, getattr(cfg, k), getattr(type(cfg), k).doc) for k in cfg.keys()]  # noqa: E501
+    return [
+        (k, getattr(type(cfg), k).to_string(getattr(cfg, k)), getattr(type(cfg), k).doc)
+        for k in cfg.keys()
+    ]
 
 
 def make_table(rows, format="text", max_key_width=20, max_value_width=25,
@@ -215,7 +218,7 @@ def make_table(rows, format="text", max_key_width=20, max_value_width=25,
         body = "".join(
             wrap_row([
                 wrap_cell(f"<code>{k}</code>"),
-                wrap_cell(f"<code>{v!r}</code>"),
+                wrap_cell(f"<code>{v}</code>"),
                 wrap_cell(d),
             ])
             for k, v, d in rows

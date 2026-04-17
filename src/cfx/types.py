@@ -144,8 +144,11 @@ class MultiOptions(ConfigField):
             value = set(value)
         super().__set__(obj, value)
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         return {item.strip() for item in s.split(",") if item.strip()}
+
+    def to_string(self, value):  # noqa: D102
+        return "{" + ", ".join(sorted(str(x) for x in value)) + "}"
 
     # docs are inherited
     def validate(self, value):  # noqa: D102
@@ -262,7 +265,7 @@ class Scalar(ConfigField):
         self.maxval = maxval
         super().__init__(default_value, doc, static=static, env=env)
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         try:
             return int(s)
         except ValueError:
@@ -329,7 +332,7 @@ class Int(ConfigField):
         self.maxval = maxval
         super().__init__(default_value, doc, static=static, env=env)
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         try:
             return int(s)
         except ValueError:
@@ -390,7 +393,7 @@ class Float(ConfigField):
         self.maxval = maxval
         super().__init__(default_value, doc, static=static, env=env)
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         try:
             return float(s)
         except ValueError:
@@ -430,7 +433,7 @@ class Bool(ConfigField):
         If the value is not a `bool`.
     """
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         if s.lower() in ("1", "true", "yes", "on"):
             return True
         if s.lower() in ("0", "false", "no", "off"):
@@ -498,8 +501,11 @@ class Path(ConfigField):
         self.validate(value)
         setattr(obj, self.private_name, value)
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         return pathlib.Path(s)
+
+    def to_string(self, value):  # noqa: D102
+        return str(value)
 
     def validate(self, value):  # noqa: D102
         if not isinstance(value, pathlib.Path):
@@ -531,7 +537,7 @@ class Seed(ConfigField):
         If the value is not an `int` or `None`.
     """
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         if s.lower() in ("none", "null", ""):
             return None
         try:
@@ -583,7 +589,7 @@ class Range(ConfigField):
             value = tuple(value)
         super().__set__(obj, value)
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         parts = s.split(",")
 
         if len(parts) != 2:
@@ -661,7 +667,7 @@ class List(ConfigField):
         self.maxlen = maxlen
         super().__init__(default_value, doc, static=static, env=env)
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         try:
             result = json.loads(s)
             if isinstance(result, list):
@@ -713,13 +719,16 @@ class Dict(ConfigField):
         If the value is not a `dict`.
     """
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         try:
             return json.loads(s)
         except (json.JSONDecodeError, ValueError):
             raise ValueError(
                 f"Cannot parse {s!r} as JSON dict (env var {self.env!r})"
             )
+
+    def to_string(self, value):  # noqa: D102
+        return json.dumps(value)
 
     def validate(self, value):  # noqa: D102
         if not isinstance(value, dict):
@@ -745,13 +754,16 @@ class Date(ConfigField):
         If the value is not a `datetime.date`.
     """
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         try:
             return datetime.date.fromisoformat(s)
         except ValueError:
             raise ValueError(
                 f"Cannot parse {s!r} as ISO date (env var {self.env!r})"
             )
+
+    def to_string(self, value):  # noqa: D102
+        return value.isoformat()
 
     def validate(self, value):  # noqa: D102
         if not isinstance(value, datetime.date):
@@ -787,13 +799,16 @@ class Time(ConfigField):
             value = datetime.time.fromisoformat(value)
         super().__set__(obj, value)
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         try:
             return datetime.time.fromisoformat(s)
         except ValueError:
             raise ValueError(
                 f"Cannot parse {s!r} as ISO time (env var {self.env!r})"
             )
+
+    def to_string(self, value):  # noqa: D102
+        return value.isoformat()
 
     def validate(self, value):  # noqa: D102
         if not isinstance(value, datetime.time):
@@ -822,13 +837,16 @@ class DateTime(ConfigField):
         If the value is not a `datetime.datetime`.
     """
 
-    def _from_env_str(self, s):
+    def from_string(self, s):
         try:
             return datetime.datetime.fromisoformat(s)
         except ValueError:
             raise ValueError(
                 f"Cannot parse {s!r} as ISO datetime (env var {self.env!r})"
             )
+
+    def to_string(self, value):  # noqa: D102
+        return value.isoformat()
 
     def validate(self, value):  # noqa: D102
         if not isinstance(value, datetime.datetime):
