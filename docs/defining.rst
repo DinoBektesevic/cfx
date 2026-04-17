@@ -1,9 +1,6 @@
 Defining a config
 =================
 
-.. contents:: On this page
-   :local:
-   :depth: 2
 
 Subclass :class:`~cfx.Config` and declare field descriptors as class
 attributes.  Each field carries its default value, type, validation
@@ -28,15 +25,14 @@ constraints, and documentation in one place::
 
 .. code-block:: text
 
-    ProcessingConfig:
-    Configuration for the main processing pipeline.
-    Key        | Value   | Description
-    -----------+---------+-------------------------------
-    iterations | 100     | Number of iterations
-    threshold  | 0.5     | Acceptance threshold
-    label      | run_01  | Human-readable run label
-    mode       | fast    | Processing mode
-    verbose    | False   | Enable verbose logging
+    ProcessingConfig: Configuration for the main processing pipeline.
+    Config           | Key        | Value  | Description
+    -----------------+------------+--------+-------------------------
+    ProcessingConfig | iterations | 100    | Number of iterations
+    ProcessingConfig | threshold  | 0.5    | Acceptance threshold
+    ProcessingConfig | label      | run_01 | Human-readable run label
+    ProcessingConfig | mode       | fast   | Processing mode
+    ProcessingConfig | verbose    | False  | Enable verbose logging
 
 In a Jupyter notebook the same table is rendered as HTML automatically via
 the standard ``_repr_html_`` protocol.

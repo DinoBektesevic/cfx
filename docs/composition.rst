@@ -1,9 +1,6 @@
 Config composition
 ==================
 
-.. contents:: On this page
-   :local:
-   :depth: 2
 
 .. _composition:
 

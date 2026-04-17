@@ -1,9 +1,6 @@
 Using configs
 =============
 
-.. contents:: On this page
-   :local:
-   :depth: 1
 
 
 Accessing and setting fields

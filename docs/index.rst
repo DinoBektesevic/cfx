@@ -1,56 +1,68 @@
-.. image:: _static/logo/color_large.svg
-   :alt: pyconf
-   :width: 500px
-   :align: center
-
-pyconf
-======
+cfx
+===
 
 Declare configuration fields next to the classes that use them.
-Each field carries its own default value, type checking, and documentation::
+Each field carries its own default value, type checking, and documentation.
+Compose flat and nested configs freely — the display always shows a unified
+tree and table::
 
-    from cfx import Config, Float, Int, Options, Bool
+    from cfx import Config, Float, String, Bool
 
-    class RunConfig(Config):
-        """Configuration for a data-processing run."""
-        confid     = "run"
-        iterations = Int(100,   "Number of processing iterations", minval=1)
-        threshold  = Float(0.5, "Acceptance threshold", minval=0.0, maxval=1.0)
-        mode       = Options(("fast", "balanced", "thorough"), "Processing mode")
-        verbose    = Bool(False, "Enable verbose logging")
+    class CalibConfig(Config):
+        """Photometric calibration parameters."""
+        confid = "calib"
+        scale = Float(1.0, "Flux scale factor")
+        zero_point = Float(25.0, "Photometric zero-point")
 
-    cfg = RunConfig()
+    class SourceConfig(Config, components=[CalibConfig]):
+        """Source detection and measurement."""
+        confid = "source"
+        n_sigma = Float(3.0, "Detection threshold in sigma")
+
+    class PipelineConfig(Config, components=[SourceConfig]):
+        """Image analysis pipeline."""
+        confid = "pipeline"
+        run_id = String("run_01", "Run identifier")
+        dry_run = Bool(False, "Validate only; skip writes")
+
+    cfg = PipelineConfig()
     print(cfg)
 
 .. code-block:: text
 
-    RunConfig:
-    Configuration for a data-processing run.
-    Key        | Value   | Description
-    -----------+---------+----------------------------------
-    iterations | 100     | Number of processing iterations
-    threshold  | 0.5     | Acceptance threshold
-    mode       | fast    | Processing mode
-    verbose    | False   | Enable verbose logging
+    PipelineConfig: Image analysis pipeline.
+    └─ SourceConfig: Source detection and measurement.
+        └─ CalibConfig: Photometric calibration parameters.
+    Config         | Key        | Value  | Description
+    ---------------+------------+--------+-----------------------------
+    PipelineConfig | run_id     | run_01 | Run identifier
+    PipelineConfig | dry_run    | False  | Validate only; skip writes
+    SourceConfig   | n_sigma    | 3.0    | Detection threshold in sigma
+    CalibConfig    | scale      | 1.0    | Flux scale factor
+    CalibConfig    | zero_point | 25.0   | Photometric zero-point
 
 What you get:
 
 - **Validated fields** — typos and bad values raise immediately at the point
   of assignment, not silently hours later.
-- **Self-documenting** — ``print(cfg)`` and Jupyter ``repr`` show a table of
-  every field with its current value and description.
+- **Self-documenting** — ``print(cfg)`` renders a tree of the config hierarchy
+  followed by a unified table of all fields, nested included.  In Jupyter the
+  same layout renders as HTML automatically via ``_repr_html_``.
 - **Composable** — assemble configs from multiple subsystem configs, either
-  flat (all fields in one namespace) or nested (sub-objects by name).
+  flat (all fields in one namespace) or nested (sub-objects by name), or mix
+  both styles on the same class.
 - **Serializable** — round-trip to/from dict, YAML, and TOML with one method
   call.
-- **Extensible** — subclass :class:`~cfx.ConfigField` to add your own
-  field types with custom validation and normalization.
-- **Zero hard dependencies** — YAML and TOML support are optional soft
-  dependencies.
+- **CLI-ready** — every config exposes ``add_arguments`` / ``from_argparse``
+  for argparse and ``click_options`` / ``from_click`` for Click.  Nested
+  sub-configs use dot-notation flags (e.g. ``--source.n-sigma``).
+- **Extensible** — subclass :class:`~cfx.ConfigField` to add your own field
+  types with custom validation and normalization.
+- **Zero hard dependencies** — YAML, TOML, and Click support are optional.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents
+   :caption: User Guide
 
    defining
    using
@@ -59,4 +71,15 @@ What you get:
    fields
    sharp-edges
    advanced
+
+.. toctree::
+   :maxdepth: 1
+   :caption: API Reference
+
    api/index
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   changelog

@@ -1,9 +1,6 @@
 Sharp edges
 ===========
 
-.. contents:: On this page
-   :local:
-   :depth: 1
 
 .. _sharp-edges:
 

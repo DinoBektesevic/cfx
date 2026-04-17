@@ -1,9 +1,6 @@
 Advanced Usage
 ==============
 
-.. contents:: On this page
-   :local:
-   :depth: 2
 
 This page covers implementation details you will need when writing custom
 field types.  For the quick version — a working custom field and callable

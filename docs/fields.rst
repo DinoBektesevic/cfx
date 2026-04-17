@@ -1,9 +1,6 @@
 Fields
 ======
 
-.. contents:: On this page
-   :local:
-   :depth: 2
 
 
 Field types

@@ -340,7 +340,11 @@ class TestNestedComposition:
 
     def test_nested_str_shows_sub_config_summary(self):
         s = str(NestedConfig())
-        assert "independent" in s
+        assert "IndependentConfig" in s
+
+    def test_nested_str_has_box_drawing(self):
+        s = str(NestedConfig())
+        assert "├─" in s or "└─" in s
 
 
 #############################################################################
@@ -378,6 +382,10 @@ class TestDeepNested:
     def test_str(self):
         s = str(DeepOuterConfig())
         assert "middle" in s
+
+    def test_str_has_box_drawing(self):
+        s = str(DeepOuterConfig())
+        assert "└─" in s
 
     def test_middle_has_own_field(self):
         cfg = DeepOuterConfig()

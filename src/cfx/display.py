@@ -3,7 +3,7 @@
 This module is intentionally not re-exported from the top-level package.
 Import directly when needed::
 
-    from pyconf.display import make_table, wrap_cell
+    from cfx.display import make_table, as_table
 
 Public API
 ----------
@@ -13,12 +13,18 @@ wrap_cell, wrap_row
     HTML tag helpers with optional attribute support.
 make_table
     Unified table builder - produces either a fixed-width text table or an
-    HTML ``<table>`` from a list of ``(name, value, doc)`` rows.
+    HTML ``<table>`` from a list of ``(config, name, value, doc)`` rows.
 as_table
     Full config renderer for ``__str__`` (format ``"text"``) and
     ``_repr_html_`` (format ``"html"``).
 as_inline_string
     Compact ``ClassName(k=v, ...)`` one-liner for ``__repr__``.
+config_tree
+    Tree diagram of a config hierarchy with wrapped docstrings.
+table_rows
+    Extract ``(field_name, current_value, doc)`` 3-tuples from a flat config.
+flat_table_rows
+    Extract ``(class_name, field_name, value, doc)`` 4-tuples recursively.
 """
 
 import textwrap
@@ -31,6 +37,9 @@ __all__ = [
     "make_table",
     "as_table",
     "as_inline_string",
+    "config_tree",
+    "table_rows",
+    "flat_table_rows",
 ]
 
 
@@ -63,9 +72,9 @@ def textwrap_row(row, max_widths):
     Parameters
     ----------
     row : `tuple[str]`
-        ``(key, value, description)`` strings.
+        Cell strings, one per column.
     max_widths : `tuple[int]`
-        ``(max_key_w, max_value_w, max_desc_w)`` column limits.
+        Column width limits, one per column.
 
     Returns
     -------
@@ -155,8 +164,8 @@ def fmt_text_row(wrapped_cells, widths):
     out = []
     for i in range(n):
         parts = [
-            (wrapped_cells[col][i] if i < len(wrapped_cells[col]) else "").ljust(widths[col])  # noqa: E501
-            for col in range(3)
+            f"{wrapped_cells[col][i] if i < len(wrapped_cells[col]) else '':<{widths[col]}}"  # noqa: E501
+            for col in range(len(widths))
         ]
         out.append(" | ".join(parts))
     return "\n".join(out)
@@ -177,35 +186,107 @@ def table_rows(cfg):
     Returns
     -------
     rows: `list[tuple]`
+        3-tuples of ``(key, formatted_value, doc)``.
     """
     rows = []
     for key, value in cfg.items():
-        # to_string is a staticmethod defined on ConfigField so just fetch it
         field = getattr(type(cfg), key)
-        fmtstr = field.to_string(value)
-        rows.append((key, fmtstr, field.doc))
+        rows.append((key, field.to_string(value), field.doc))
     return rows
 
 
-def make_table(rows, format="text", max_key_width=20, max_value_width=25,
-               max_desc_width=50):
-    """Format ``(name, value, doc)`` rows as a text or HTML table.
+def flat_table_rows(cfg):
+    """Extract ``(class_name, key, value, doc)`` tuples from *cfg* recursively.
+
+    Walks *cfg* and all nested sub-configs depth-first, prepending the class
+    name as a leading column so all fields across the whole hierarchy can be
+    rendered in a single unified table.
+
+    Parameters
+    ----------
+    cfg : `Config`
+        Any `Config` instance, flat or nested.
+
+    Returns
+    -------
+    rows : `list[tuple]`
+        4-tuples of ``(class_name, key, formatted_value, doc)``.
+    """
+    cls = type(cfg)
+    rows = []
+    for key, value in cfg.items():
+        field = getattr(cls, key)
+        rows.append((cls.__name__, key, field.to_string(value), field.doc))
+    for confid in getattr(cls, "_nested_classes", {}):
+        rows.extend(flat_table_rows(getattr(cfg, confid)))
+    return rows
+
+
+def config_tree(cfg, width=79, _cont="", _branch=""):
+    """Render a compact tree diagram of a config hierarchy.
+
+    Each node shows the class name and its docstring (preserved as-is, not
+    reflowed). Sub-configs are connected with unicode box-drawing characters.
+
+    Parameters
+    ----------
+    cfg : `Config`
+        Root config instance.
+    width : `int`, optional
+        Kept for API compatibility; no longer used internally. Default ``79``.
+    _cont : `str`
+        Internal: continuation prefix for docstring lines and child prefixes.
+        Do not pass manually.
+    _branch : `str`
+        Internal: prefix for this node's first line (e.g. ``"├─ "``).
+        Do not pass manually.
+
+    Returns
+    -------
+    tree : `str`
+        Multi-line tree string.
+    """
+    cls = type(cfg)
+    doc = (cls.__doc__ or "").strip()
+    nested = list(getattr(cls, "_nested_classes", {}))
+
+    doc_lines = doc.splitlines() if doc else []
+    first = f"{_branch}{cls.__name__}"
+    if doc_lines:
+        first += f": {doc_lines[0]}"
+    result = [first]
+    for line in doc_lines[1:]:
+        result.append(f"{_cont}{line}" if line.strip() else _cont.rstrip())
+
+    for i, confid in enumerate(nested):
+        is_last = (i == len(nested) - 1)
+        child_branch = _cont + ("└─ " if is_last else "├─ ")
+        child_cont = _cont + ("    " if is_last else "│   ")
+        result.append(config_tree(
+            getattr(cfg, confid), width, child_cont, child_branch
+        ))
+    return "\n".join(result)
+
+
+def make_table(rows, format="text", max_config_width=25, max_key_width=20,
+               max_value_width=25, max_desc_width=50):
+    """Format ``(config, name, value, doc)`` rows as a text or HTML table.
 
     Parameters
     ----------
     rows : `list[tuple]`
-        Each tuple format is ``(key, value, description)``.
+        Each tuple is ``(config_class, key, value, description)``.
     format : `str`, optional
-        If format is "text", returns a markdown-like table. If the format is
-        "html", returns a string HTML table. Default "text".
+        ``"text"`` for a fixed-width terminal table; ``"html"`` for a
+        ``<table>`` string. Default ``"text"``.
+    max_config_width : `int`, optional
+        Max width for the Config column. Ignored in HTML mode.
     max_key_width : `int`, optional
-        Max width for the first column, represents "Key". Ignored in HTML mode.
+        Max width for the Key column. Ignored in HTML mode.
     max_value_width : `int`, optional
-        Max width for the second column, represents the value of a config
-        field. Ignored in HTML mode.
+        Max width for the Value column. Ignored in HTML mode.
     max_desc_width : `int`, optional
-        Max width for the third column, represents the doc string of a config
-        field. Ignored in HTML mode.
+        Max width for the Description column. Ignored in HTML mode.
 
     Returns
     -------
@@ -214,29 +295,32 @@ def make_table(rows, format="text", max_key_width=20, max_value_width=25,
     """
     if format == "html":
         header_row = wrap_row([
-            wrap_cell("Key", tag="th"),
-            wrap_cell("Value", tag="th"),
+            wrap_cell("Config",      tag="th"),
+            wrap_cell("Key",         tag="th"),
+            wrap_cell("Value",       tag="th"),
             wrap_cell("Description", tag="th"),
         ])
         body = "".join(
             wrap_row([
+                wrap_cell(f"<code>{cfg}</code>"),
                 wrap_cell(f"<code>{k}</code>"),
                 wrap_cell(f"<code>{v}</code>"),
                 wrap_cell(d),
             ])
-            for k, v, d in rows
+            for cfg, k, v, d in rows
         )
         return f"<table>{header_row}{body}</table>"
 
     # text mode
-    header = ("Key", "Value", "Description")
-    max_widths = (max_key_width, max_value_width, max_desc_width)
+    header = ("Config", "Key", "Value", "Description")
+    max_widths = (max_config_width, max_key_width, max_value_width,
+                  max_desc_width)
     wrapped_header = textwrap_row(header, max_widths)
     wrapped_rows = [textwrap_row(r, max_widths) for r in rows]
     all_wrapped = [wrapped_header] + wrapped_rows
     widths = [
         max(len(line) for wr in all_wrapped for line in wr[i])
-        for i in range(3)
+        for i in range(4)
     ]
     sep = "-+-".join("-" * w for w in widths)
     lines = [fmt_text_row(wrapped_header, widths), sep] + [
@@ -248,47 +332,44 @@ def make_table(rows, format="text", max_key_width=20, max_value_width=25,
 def as_table(cfg, format="text"):
     """Render a `Config` instance as a full text or HTML table.
 
-    Handles both flat configs (fields rendered as rows) and nested configs
-    (sub-configs rendered recursively).
+    Produces a tree diagram of the config hierarchy (with wrapped docstrings)
+    followed by a single unified table with a leading Config column. Works for
+    flat, nested, and mixed flat+nested configs.
 
     Parameters
     ----------
     cfg : `Config`
         The config instance to render.
     format : `str`, optional
-        When "text" renders a markdown-style table as a string, when "html"
-        renders ``<table>...</table>`` HTML string. Default: text.
+        ``"text"`` for a terminal table; ``"html"`` for an HTML block.
+        Default ``"text"``.
 
     Returns
     -------
     table : `str`
-        Complete rendered representation including title and docstring.
+        Tree diagram followed by the unified field table.
     """
-    nested_classes = getattr(type(cfg), "_nested_classes", {})
-    title = type(cfg).__name__
-    doc = type(cfg).__doc__
+    rows = flat_table_rows(cfg)
 
     if format == "html":
-        doc_html = f"<p>{doc.strip()}</p>" if doc else ""
-        parts = []
-        if cfg._fields:
-            parts.append(make_table(table_rows(cfg), format="html"))
-        for confid in nested_classes:
-            parts.append(as_table(getattr(cfg, confid), format="html"))
-        return f"<b>{title}</b>{doc_html}" + "".join(parts)
+        tree_html = f"<pre>{config_tree(cfg)}</pre>"
+        return tree_html + make_table(rows, format="html")
 
-    # text mode
-    header = f"{title}:"
-    if doc:
-        header += f"\n{doc.strip()}"
-    parts = []
-    if cfg._fields:
-        parts.append(make_table(table_rows(cfg), format="text"))
-    for confid in nested_classes:
-        parts.append(
-            f"[{confid}]\n{as_table(getattr(cfg, confid), format='text')}"
-        )
-    return header + "\n" + "\n\n".join(parts)
+    # text mode: compute actual column widths first so the tree can wrap
+    # to the same total width as the table.
+    max_widths = (25, 20, 25, 50)
+    header = ("Config", "Key", "Value", "Description")
+    all_wrapped = [textwrap_row(header, max_widths)] + [
+        textwrap_row(r, max_widths) for r in rows
+    ]
+    widths = [
+        max(len(line) for wr in all_wrapped for line in wr[i])
+        for i in range(4)
+    ]
+    total_width = sum(widths) + 3 * 3  # 4 cols = 3 separators of " | "
+    tree = config_tree(cfg, width=total_width)
+    table = make_table(rows, format="text")
+    return tree + "\n" + table
 
 
 def as_inline_string(cfg):

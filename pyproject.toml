@@ -24,7 +24,7 @@ docs = [
     "sphinx",
     "sphinx-autoapi",
     "numpydoc",
-    "sphinx-rtd-theme",
+    "furo",
 ]
 dev = ["cfx[test,docs]", "flake8", "towncrier"]
 
