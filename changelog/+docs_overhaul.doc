@@ -1,6 +1,0 @@
-Switched documentation theme from Alabaster to Furo with light and dark
-mode logos, GitHub and PyPI footer icons, and sidebar sections (User Guide,
-API Reference, Development). Updated the canonical example throughout to
-showcase flat fields alongside deep nested sub-configs. Added a Changelog
-page. Removed redundant per-page ``.. contents::`` directives that conflicted
-with Furo's built-in sidebar navigation.
