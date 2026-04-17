@@ -1,3 +1,28 @@
+# cfx 0.2.0 (2026-04-17)
+
+## Features
+
+- Improved ``config_tree`` in ``display.py``: replaced ``textwrap.fill``
+  with unicode box-drawing characters (``├─``, ``└─``, ``│``). Multiline
+  docstrings are now preserved exactly as written rather than reflowed into
+  a single paragraph. Nesting depth is indicated by a 4-space continuation
+  indent per level. The Config column cap in ``make_table`` was raised from
+  15 to 25 characters so that class names are never broken mid-word.
+- ``make_table`` and ``as_table`` now accept a ``table_attrs`` keyword argument
+  that adds HTML attributes (e.g. ``class``, ``id``) to the generated
+  ``<table>`` element, making it straightforward to target the output with
+  custom CSS.
+
+## Documentation
+
+- Switched documentation theme from Alabaster to Furo with light and dark
+  mode logos, GitHub and PyPI footer icons, and sidebar sections (User Guide,
+  API Reference, Development). Updated the canonical example throughout to
+  showcase flat fields alongside deep nested sub-configs. Added a Changelog
+  page. Removed redundant per-page ``.. contents::`` directives that conflicted
+  with Furo's built-in sidebar navigation.
+
+
 # cfx 0.1.0 (2026-04-17)
 
 ## Features
