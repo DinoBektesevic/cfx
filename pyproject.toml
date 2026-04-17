@@ -28,6 +28,12 @@ docs = [
 ]
 dev = ["cfx[test,docs]", "flake8", "towncrier"]
 
+[project.urls]
+Homepage = "https://github.com/DinoBektesevic/cfx"
+Documentation = "https://cfx.readthedocs.io/en/latest/"
+Repository = "https://github.com/DinoBektesevic/cfx"
+Changelog = "https://cfx.readthedocs.io/en/latest/changelog.html"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
