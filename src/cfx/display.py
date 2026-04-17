@@ -269,7 +269,7 @@ def config_tree(cfg, width=79, _cont="", _branch=""):
 
 
 def make_table(rows, format="text", max_config_width=25, max_key_width=20,
-               max_value_width=25, max_desc_width=50):
+               max_value_width=25, max_desc_width=50, table_attrs=None):
     """Format ``(config, name, value, doc)`` rows as a text or HTML table.
 
     Parameters
@@ -287,6 +287,10 @@ def make_table(rows, format="text", max_config_width=25, max_key_width=20,
         Max width for the Value column. Ignored in HTML mode.
     max_desc_width : `int`, optional
         Max width for the Description column. Ignored in HTML mode.
+    table_attrs : `dict` or `None`, optional
+        HTML attributes added to the ``<table>`` tag, e.g.
+        ``{"class": "my-table", "id": "pipeline-config"}``.
+        Only used when ``format="html"``. Default ``None``.
 
     Returns
     -------
@@ -309,7 +313,12 @@ def make_table(rows, format="text", max_config_width=25, max_key_width=20,
             ])
             for cfg, k, v, d in rows
         )
-        return f"<table>{header_row}{body}</table>"
+        attr_str = ""
+        if table_attrs:
+            attr_str = " " + " ".join(
+                f'{k}="{v}"' for k, v in table_attrs.items()
+            )
+        return f"<table{attr_str}>{header_row}{body}</table>"
 
     # text mode
     header = ("Config", "Key", "Value", "Description")
@@ -329,7 +338,7 @@ def make_table(rows, format="text", max_config_width=25, max_key_width=20,
     return "\n".join(lines)
 
 
-def as_table(cfg, format="text"):
+def as_table(cfg, format="text", table_attrs=None):
     """Render a `Config` instance as a full text or HTML table.
 
     Produces a tree diagram of the config hierarchy (with wrapped docstrings)
@@ -343,6 +352,10 @@ def as_table(cfg, format="text"):
     format : `str`, optional
         ``"text"`` for a terminal table; ``"html"`` for an HTML block.
         Default ``"text"``.
+    table_attrs : `dict` or `None`, optional
+        HTML attributes for the ``<table>`` tag, e.g.
+        ``{"class": "my-table", "id": "pipeline-config"}``.
+        Only used when ``format="html"``. Default ``None``.
 
     Returns
     -------
@@ -353,7 +366,7 @@ def as_table(cfg, format="text"):
 
     if format == "html":
         tree_html = f"<pre>{config_tree(cfg)}</pre>"
-        return tree_html + make_table(rows, format="html")
+        return tree_html + make_table(rows, format="html", table_attrs=table_attrs)
 
     # text mode: compute actual column widths first so the tree can wrap
     # to the same total width as the table.

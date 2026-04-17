@@ -68,6 +68,7 @@ What you get:
    using
    composition
    serialization
+   cli
    fields
    sharp-edges
    advanced

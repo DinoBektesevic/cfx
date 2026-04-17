@@ -84,3 +84,41 @@ the same pattern — it coerces strings to ``pathlib.Path`` before storing::
    Any ``__set__`` override that bypasses ``super().__set__()`` **must**
    re-check ``self.static`` itself.  Forgetting this makes the static flag
    silently ineffective for that field type.
+
+
+HTML rendering
+--------------
+
+:meth:`~cfx.Config._repr_html_` is called automatically by Jupyter when a
+config instance is the last expression in a cell, producing a ``<pre>`` block
+for the hierarchy tree followed by an HTML ``<table>`` with one row per field.
+
+To generate the same HTML fragment programmatically — for embedding in a
+custom web UI or notebook template — import :func:`~cfx.display.as_table`
+directly::
+
+    from cfx.display import as_table
+
+    html = as_table(cfg, format="html")
+
+The output is a self-contained fragment: a ``<pre>...</pre>`` containing the
+config tree followed by a ``<table>...</table>`` with one ``<tr>`` per field.
+Field class names and values are wrapped in ``<code>`` tags; description cells
+are plain text.
+
+Pass ``table_attrs`` to add a CSS class or ``id`` to the ``<table>`` element,
+which lets you target it with custom stylesheet rules::
+
+    html = as_table(cfg, format="html",
+        table_attrs={"class": "cfx-table", "id": "pipeline"})
+    # → <pre>...</pre><table class="cfx-table" id="pipeline">...</table>
+
+The lower-level building blocks are also available if you need more control::
+
+    from cfx.display import config_tree, flat_table_rows, make_table
+
+    tree = config_tree(cfg)  # unicode tree string
+    rows = flat_table_rows(cfg)  # (class, key, value, doc)
+    html = make_table(rows, format="html",
+        table_attrs={"class": "cfx-table"})  # <table class="cfx-table">...</table>
+    text = make_table(rows, format="text")  # fixed-width terminal table

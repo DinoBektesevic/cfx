@@ -87,6 +87,55 @@ To make a whole *instance* read-only after construction (rather than
 individual fields), use :ref:`freeze` instead.
 
 
+Environment variables
+---------------------
+
+Pass ``env=`` to any field to read its default from an environment variable
+when no explicit value has been stored on the instance::
+
+    import os
+    from cfx import Config, String, Int
+
+    class DatabaseConfig(Config):
+        host = String("localhost", "Database host", env="DB_HOST")
+        port = Int(5432, "Database port", env="DB_PORT")
+
+    os.environ["DB_HOST"] = "db.example.com"
+    cfg = DatabaseConfig()
+    cfg.host    # 'db.example.com' — from env var
+    cfg.port    # 5432 — env var not set; falls back to default
+
+The lookup priority on every field read is:
+
+1. An explicit value stored on the instance (via assignment or
+   :meth:`~cfx.Config.from_dict`).
+2. The environment variable named by ``env``, if the variable is present in
+   ``os.environ``.
+3. The ``default_value`` passed to the field constructor (called if callable).
+
+Environment variable reads are **lazy**: the variable is looked up on every
+read where no explicit value is stored, not snapshotted at construction.
+This makes it straightforward to vary the environment between test cases::
+
+    os.environ["DB_HOST"] = "primary.example.com"
+    cfg = DatabaseConfig()
+    cfg.host    # 'primary.example.com'
+
+    os.environ["DB_HOST"] = "replica.example.com"
+    cfg.host    # 'replica.example.com' — re-read each time
+
+Once an explicit value is stored, the environment variable is no longer
+consulted::
+
+    cfg.host = "override.example.com"
+    os.environ["DB_HOST"] = "ignored"
+    cfg.host    # 'override.example.com'
+
+The raw environment string is parsed with the field's
+:meth:`~cfx.ConfigField.from_string` method, so typed fields (``Int``,
+``Float``, ``Bool``, etc.) coerce and validate the value automatically.
+
+
 Cross-field validation
 ----------------------
 
@@ -161,11 +210,11 @@ domain-specific.  A custom field handles this naturally::
 .. code-block:: text
 
     SurveyConfig:
-    Key     | Value | Description
-    --------+-------+-------------------------------
-    heading | 330.0 | Survey heading in degrees
-    bearing | 45.0  | Bearing to target in degrees
-    radius  | 10.0  | Search radius in meters
+    Config       | Key     | Value | Description
+    -------------+---------+-------+-------------------------------
+    SurveyConfig | heading | 330.0 | Survey heading in degrees
+    SurveyConfig | bearing | 45.0  | Bearing to target in degrees
+    SurveyConfig | radius  | 10.0  | Search radius in meters
 
 Any field type also accepts a **callable** as its default value.  The callable
 receives the live config instance and is evaluated on every read where no
