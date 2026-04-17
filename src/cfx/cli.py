@@ -198,10 +198,10 @@ def field_to_click_option(name, descriptor, prefix=""):
     if isinstance(descriptor, Bool):
         hyphenated = name.replace("_", "-")
         if prefix:
-            no_flag = f"--{prefix}.no-{hyphenated}"
+            flag_pair = f"--{prefix}.{hyphenated}/--{prefix}.no-{hyphenated}"
         else:
-            no_flag = f"--no-{hyphenated}"
-        return click.option(flag, no_flag, param_name, **base_kw)
+            flag_pair = f"--{hyphenated}/--no-{hyphenated}"
+        return click.option(flag_pair, param_name, **base_kw)
 
     if isinstance(descriptor, MultiOptions):
         return click.option(

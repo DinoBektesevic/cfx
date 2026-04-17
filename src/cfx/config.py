@@ -5,11 +5,15 @@ fields at class-definition time, and `Config`, the base class that all
 user-defined configuration classes inherit from.
 """
 
+import argparse
+import datetime
+import functools
 import pathlib
 import warnings
-import datetime
 
+from .cli import field_to_argparse_kwargs, field_to_click_option
 from .display import as_table, as_inline_string
+from .types import List, MultiOptions
 
 try:
     import yaml
@@ -662,7 +666,6 @@ class Config(metaclass=ConfigMeta):
         prefix : `str`, optional
             Dot-separated prefix prepended to every flag name. Default ``""``.
         """
-        from .cli import field_to_argparse_kwargs
         nested_classes = getattr(cls, "_nested_classes", {})
         for name, descriptor in cls.defaults.items():
             if descriptor.static:
@@ -690,7 +693,6 @@ class Config(metaclass=ConfigMeta):
             absent from the namespace (value ``None``) keep their class-level
             defaults.
         """
-        from .types import MultiOptions
         params = vars(namespace)
         instance = cls.__new__(cls)
         nested_classes = getattr(cls, "_nested_classes", {})
@@ -742,10 +744,8 @@ class Config(metaclass=ConfigMeta):
             A new instance with values from the config file (if given) and
             any CLI overrides applied on top.
         """
-        import argparse as _argparse
-        from .types import MultiOptions
         if parser is None:
-            parser = _argparse.ArgumentParser()
+            parser = argparse.ArgumentParser()
         parser.add_argument(
             "config_file", nargs="?", default=None,
             help=(
@@ -813,8 +813,6 @@ class Config(metaclass=ConfigMeta):
                 "click is required for click_options(). "
                 "Install it with: pip install click"
             )
-        import functools
-        from .cli import field_to_click_option
         options = []
         nested_classes = getattr(cls, "_nested_classes", {})
         for name, descriptor in cls.defaults.items():
@@ -853,7 +851,6 @@ class Config(metaclass=ConfigMeta):
         cfg : `Config`
             A new instance with all non-``None`` param values applied.
         """
-        from .types import List, MultiOptions
         instance = cls.__new__(cls)
         nested_classes = getattr(cls, "_nested_classes", {})
         # Initialize nested sub-configs and flat defaults.
