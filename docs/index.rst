@@ -1,6 +1,10 @@
 cfx
 ===
 
+.. raw:: html
+
+   <p class="cfx-subtitle">Lightweight self-documenting configuration classes via Python descriptors.</p>
+
 Declare configuration fields next to the classes that use them.
 Each field carries its own default value, type checking, and documentation.
 Compose flat and nested configs freely — the display always shows a unified

@@ -142,6 +142,15 @@ class ConfigMeta(type):
             # sub-configs rather than sharing class-level objects.
             nested_classes = {}
             if components is not None:
+                seen_confids = {}
+                for comp in components:
+                    if comp.confid in seen_confids:
+                        raise ValueError(
+                            f"Duplicate confid {comp.confid!r} in components: "
+                            f"{seen_confids[comp.confid].__name__} and "
+                            f"{comp.__name__}"
+                        )
+                    seen_confids[comp.confid] = comp
                 for comp in reversed(components):
                     nested_classes[comp.confid] = comp
             attrs["_nested_classes"] = nested_classes
@@ -267,9 +276,10 @@ class Config(metaclass=ConfigMeta):
         super().__setattr__(name, value)
 
     def __getitem__(self, key):  # noqa: D105
-        if key not in self._fields:
-            raise KeyError(key)
-        return getattr(self, key)
+        nested_classes = getattr(type(self), "_nested_classes", {})
+        if key in self._fields or key in nested_classes:
+            return getattr(self, key)
+        raise KeyError(key)
 
     def __setitem__(self, key, value):  # noqa: D105
         if key not in self._fields:

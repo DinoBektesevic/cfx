@@ -1,6 +1,9 @@
 Using configs
 =============
 
+This page covers runtime operations on config instances: reading and
+modifying fields, comparing and copying instances, making them read-only,
+and saving or loading values.
 
 
 Accessing and setting fields

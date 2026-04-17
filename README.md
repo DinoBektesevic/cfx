@@ -103,24 +103,34 @@ modified = cfg.copy(iterations=500)
 cfg.diff(modified)   # {'iterations': (200, 500)}
 ```
 
-### Composition
+### Environment variables
 
-Combine configs into nested sub-objects or a flat merged namespace:
+Back any field with an environment variable — the value is read lazily, so
+the same class works across environments without subclassing:
 
 ```python
-from cfx import Config, Int, String
+class ServiceConfig(Config):
+    host = String("localhost", "Database host", env="DB_HOST")
+    port = Int(5432, "Port", env="DB_PORT")
 
-class FormatConfig(Config):
-    confid = "format"
-    precision = Int(6, "Decimal places in numeric output")
-    encoding = String("utf-8", "Output file encoding")
+# DB_HOST=prod.example.com python run.py
+cfg = ServiceConfig()
+cfg.host   # 'prod.example.com' — from env, no code change needed
+```
 
-class PipelineConfig(Config, components=[ProcessingConfig, FormatConfig]):
-    pass
+### CLI
 
-cfg = PipelineConfig()
-cfg.processing.iterations = 500
-cfg.format.precision = 3
+Every config exposes `add_arguments` / `from_argparse` for argparse and
+`click_options` / `from_click` for Click. Nested sub-configs use dot-notation
+flags automatically:
+
+```python
+import argparse
+
+parser = argparse.ArgumentParser()
+ProcessingConfig.add_arguments(parser)
+cfg = ProcessingConfig.from_argparse(parser.parse_args())
+# python run.py --iterations 200 --mode thorough --no-verbose
 ```
 
 ## License

@@ -45,6 +45,17 @@ or overrides::
     cfg.max_size    # 1000 — new field added by child
 
 
+Which mode to use
+-----------------
+
+Use **nested** (the default) when sub-systems are logically independent
+and you want ``cfg.processing`` and ``cfg.format`` to be distinct namespaces.
+Use **unroll** when you want a flat dict-like namespace and don't need to
+address the sub-configs by name.
+
+When in doubt, start with nested — it's easier to introspect and serialize.
+
+
 Flat merge (unroll)
 -------------------
 

@@ -1,6 +1,10 @@
 Sharp edges
 ===========
 
+This page documents subtle behaviors you may encounter with advanced
+features.  Most users won't hit these, but they're important to understand
+when using callable defaults, TOML serialization, or CLI string parsing.
+
 
 .. _sharp-edges:
 
@@ -74,6 +78,38 @@ and field B's callable reads field A, you get infinite recursion::
 
 Keep the dependency graph acyclic: derived fields should only read
 earlier-declared fields that have plain defaults.
+
+
+TOML drops ``None`` values
+--------------------------
+
+``to_toml()`` silently omits any field whose current value is ``None``,
+because TOML has no null type.  After a TOML round-trip the field reverts
+to its class default rather than ``None``::
+
+    class C(Config):
+        label = String(None, "Optional label")
+
+    cfg = C()
+    cfg.label = None
+    cfg2 = C.from_toml(cfg.to_toml())
+    cfg2.label   # None — the default, not the stored None
+
+``to_dict()`` and ``to_yaml()`` preserve ``None`` values.  If you must
+round-trip ``None`` through TOML, use a sentinel instead.
+
+
+``List.from_string`` falls back silently on bad JSON
+-----------------------------------------------------
+
+When a ``List`` field reads its value from an environment variable or a
+CLI argument, it first tries to parse the raw string as JSON.  If that
+fails (e.g. a malformed array), it silently falls back to splitting on
+commas — so ``"[1, 2, 3"`` becomes ``["[1", " 2", " 3"]`` rather than an
+error.
+
+If precise element types matter, set ``element_type`` on the field and
+pass well-formed JSON arrays from the environment.
 
 
 .. _sharp-edges-normalization:

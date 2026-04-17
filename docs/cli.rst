@@ -2,6 +2,8 @@ CLI integration
 ===============
 
 
+cfx can generate command-line interfaces for your config classes
+automatically, saving you from writing custom argument parsing code.
 cfx generates argparse and Click CLI options directly from your config
 classes.  Every non-static field becomes a flag; nested sub-configs use
 dot-notation (``--source.n-sigma``).  A config file can be supplied as a
@@ -68,6 +70,21 @@ Rules:
 - **config_file** is a positional argument registered once at the top level;
   it is not repeated for nested sub-configs.
 
+The complete Python attribute path maps to the flag name like this:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 50
+
+   * - Python path
+     - Flag
+   * - ``cfg.run_id``
+     - ``--run-id``
+   * - ``cfg.source.n_sigma``
+     - ``--source.n-sigma``
+   * - ``cfg.source.calib.zero_point``
+     - ``--source.calib.zero-point``
+
 Pass a config file to load base values, then override with flags::
 
     cfg = PipelineConfig.from_argparse(
@@ -77,6 +94,13 @@ Pass a config file to load base values, then override with flags::
 
 Flags that are omitted resolve to ``None`` and leave the loaded or default
 value unchanged — they do not reset fields to their class defaults.
+
+.. note::
+
+   The config file format is inferred from the file extension.  Files with
+   ``.yaml`` or ``.yml`` extensions are parsed as YAML; everything else is
+   parsed as TOML.  Passing a YAML file with a ``.txt`` extension will cause
+   a TOML parse error.
 
 When you need to merge several configs into a single shared parser, pass
 ``prefix=`` explicitly::

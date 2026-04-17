@@ -138,6 +138,12 @@ class TestInt:
         with pytest.raises(ValueError):
             C().f = 11
 
+    def test_rejects_bool(self):
+        class C(Config):
+            f = Int(1, "doc")
+        with pytest.raises(TypeError):
+            C().f = True
+
 
 # ---------------------------------------------------------------------------
 # Float
@@ -167,6 +173,12 @@ class TestFloat:
             f = Float(1.0, "doc", minval=0.0)
         with pytest.raises(ValueError):
             C().f = -0.1
+
+    def test_rejects_bool(self):
+        class C(Config):
+            f = Float(1.0, "doc")
+        with pytest.raises(TypeError):
+            C().f = False
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +313,17 @@ class TestPath:
             f = Path(tmp_path, "doc", must_exist=True)
         c = C()
         c.f = tmp_path  # tmp_path exists
+
+    def test_validate_rejects_non_path(self):
+        class C(Config):
+            f = Path("./out", "doc")
+        with pytest.raises(TypeError):
+            C.f.validate(42)
+
+    def test_string_default_normalized_to_path(self):
+        class C(Config):
+            f = Path("./out", "doc")
+        assert isinstance(C.f.defaultval, pathlib.Path)
 
 
 # ---------------------------------------------------------------------------

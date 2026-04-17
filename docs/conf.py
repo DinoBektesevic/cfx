@@ -50,6 +50,7 @@ intersphinx_mapping = {
 
 html_theme = "furo"
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 html_theme_options = {
     "light_logo": "logo/color_large.svg",
     "dark_logo": "logo/darktheme_color_large.svg",

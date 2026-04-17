@@ -1,0 +1,22 @@
+/* Landing page title — Python blue, bold, uppercase.
+   Scoped to section#cfx so it only applies to the index page. */
+section#cfx > h1 {
+  color: #306998;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-family: system-ui, sans-serif;
+  letter-spacing: -0.05em;
+  padding: 0.3em 0 0 0.6em;
+  margin-bottom: 0;
+}
+
+/* Landing page subtitle — semi-bold, theme-adaptive gray.
+   Uses a Furo CSS variable so it lightens automatically in dark mode. */
+.cfx-subtitle {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--color-foreground-secondary);
+  text-align: center;
+  padding-bottom: 0.5em;
+  margin-top: 0.25em;
+}

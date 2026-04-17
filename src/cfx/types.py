@@ -341,7 +341,7 @@ class Int(ConfigField):
             )
 
     def validate(self, value):  # noqa: D102
-        if not isinstance(value, int):
+        if not isinstance(value, int) or isinstance(value, bool):
             raise TypeError(f"Expected an int, got {type(value).__name__!r}")
         if self.minval is not None and value < self.minval:
             raise ValueError(
@@ -402,7 +402,7 @@ class Float(ConfigField):
             )
 
     def validate(self, value):  # noqa: D102
-        if not isinstance(value, (float, int)):
+        if not isinstance(value, (float, int)) or isinstance(value, bool):
             raise TypeError(f"Expected a float, got {type(value).__name__!r}")
         if self.minval is not None and value < self.minval:
             raise ValueError(
@@ -485,6 +485,11 @@ class Path(ConfigField):
             env=None,
     ):  # noqa: D102, D107
         self.must_exist = must_exist
+        if not callable(default_value):
+            try:
+                default_value = pathlib.Path(default_value)
+            except TypeError:
+                pass  # let validate() produce the error
         super().__init__(default_value, doc, static=static, env=env)
 
     def __set__(self, obj, value):  # noqa: D105
@@ -509,7 +514,9 @@ class Path(ConfigField):
 
     def validate(self, value):  # noqa: D102
         if not isinstance(value, pathlib.Path):
-            return
+            raise TypeError(
+                f"Expected a Path, got {type(value).__name__!r}"
+            )
         if self.must_exist and not value.exists():
             raise ValueError(f"Path does not exist: {value!r}")
 

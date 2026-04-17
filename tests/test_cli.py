@@ -384,6 +384,19 @@ class TestFromArgparseFile:
         assert cfg.n_sigma == 9.9
         assert cfg.mode == "balanced"  # file value kept
 
+    def test_nested_yaml_file(self, tmp_path):
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("search:\n  n_sigma: 1.5\n  verbose: true\n")
+        cfg = parse(PipelineConfig, [str(yaml_file)])
+        assert cfg.search.n_sigma == 1.5
+        assert cfg.search.verbose is True
+
+    def test_nested_yaml_file_with_cli_override(self, tmp_path):
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("search:\n  n_sigma: 1.5\n")
+        cfg = parse(PipelineConfig, [str(yaml_file), "--search.n-sigma", "9.0"])
+        assert cfg.search.n_sigma == 9.0
+
 
 #############################################################################
 # click integration

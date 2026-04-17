@@ -39,9 +39,12 @@ Most also accept constraint parameters (``minval``, ``maxsize``, etc.) and a
        (a callable that returns ``True`` for valid values).
    * - :class:`~cfx.Options`
      - One value from a fixed set.  Default is the first option unless
-       ``default_value`` is supplied.
+       ``default_value`` is supplied.  **Note:** the constructor takes
+       ``(options, doc, default_value=None, ...)`` — the allowed choices come
+       first, unlike most other field types where the default value comes first.
    * - :class:`~cfx.MultiOptions`
-     - A ``set`` that is a subset of a fixed set of choices.
+     - A ``set`` that is a subset of a fixed set of choices.  Same
+       constructor order as ``Options``: ``(options, doc, default_value=None, ...)``.
    * - :class:`~cfx.Path`
      - A ``pathlib.Path``.  Coerces plain strings on assignment.  Optional
        ``must_exist=True`` to reject paths that do not exist on disk.
@@ -140,8 +143,12 @@ Cross-field validation
 ----------------------
 
 Override :meth:`~cfx.Config.validate` to enforce constraints that span
-multiple fields.  The base implementation does nothing.  It is called
-automatically after every deserialization::
+multiple fields.  The base implementation does nothing.
+
+``validate()`` is called automatically by :meth:`~cfx.Config.from_dict`,
+:meth:`~cfx.Config.from_yaml`, and :meth:`~cfx.Config.from_toml` after
+loading.  Individual field assignments do **not** trigger it — call it
+manually after interactive edits to recheck cross-field constraints::
 
     class BandConfig(Config):
         low = Float(1.0, "Lower frequency bound", minval=0.0)

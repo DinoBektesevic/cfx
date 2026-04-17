@@ -1,8 +1,9 @@
 """Tests for Config class methods, composition, and serialization."""
 
+import os
 import pytest
 
-from cfx import Config, FrozenConfigError, Int
+from cfx import Config, FrozenConfigError, Int, Float, String
 from .conftest import (
     BaseConfig,
     ChildConfig,
@@ -482,3 +483,94 @@ class TestMixedConfig:
         c1.inner.x = 0.0
         assert c2.top_field == 99.0
         assert c2.inner.x == 1.0
+
+
+#############################################################################
+# __getitem__ for nested configs
+#############################################################################
+
+class TestGetItemNested:
+    def test_getitem_returns_nested_sub_config(self):
+        cfg = NestedConfig()
+        sub = cfg["independent"]
+        assert sub is cfg.independent
+
+    def test_getitem_raises_for_unknown_key(self):
+        cfg = NestedConfig()
+        with pytest.raises(KeyError):
+            cfg["no_such_key"]
+
+    def test_contains_and_getitem_consistent(self):
+        cfg = NestedConfig()
+        for key in ("independent", "grandchild"):
+            assert key in cfg
+            assert cfg[key] is getattr(cfg, key)
+
+
+#############################################################################
+# Duplicate confid detection
+#############################################################################
+
+class TestDuplicateConfid:
+    def test_duplicate_confid_raises(self):
+        class A(Config):
+            confid = "shared"
+            x = Float(1.0, "x")
+
+        class B(Config):
+            confid = "shared"
+            y = Float(2.0, "y")
+
+        with pytest.raises(ValueError, match="shared"):
+            class Bad(Config, components=[A, B]):
+                pass
+
+
+#############################################################################
+# Environment variable field precedence
+#############################################################################
+
+class TestEnvVarPrecedence:
+    def test_env_var_used_when_no_explicit_value(self, monkeypatch):
+        monkeypatch.setenv("CFX_TEST_HOST", "env.example.com")
+
+        class C(Config):
+            host = String("default", "host", env="CFX_TEST_HOST")
+
+        assert C().host == "env.example.com"
+
+    def test_explicit_value_beats_env_var(self, monkeypatch):
+        monkeypatch.setenv("CFX_TEST_HOST", "env.example.com")
+
+        class C(Config):
+            host = String("default", "host", env="CFX_TEST_HOST")
+
+        c = C()
+        c.host = "explicit.example.com"
+        assert c.host == "explicit.example.com"
+
+    def test_default_used_when_env_not_set(self, monkeypatch):
+        monkeypatch.delenv("CFX_TEST_HOST", raising=False)
+
+        class C(Config):
+            host = String("default.example.com", "host", env="CFX_TEST_HOST")
+
+        assert C().host == "default.example.com"
+
+
+#############################################################################
+# HTML representation
+#############################################################################
+
+class TestReprHtml:
+    def test_repr_html_returns_string(self):
+        html = NestedConfig()._repr_html_()
+        assert isinstance(html, str)
+
+    def test_repr_html_starts_with_pre(self):
+        html = NestedConfig()._repr_html_()
+        assert html.startswith("<pre>")
+
+    def test_repr_html_contains_table(self):
+        html = NestedConfig()._repr_html_()
+        assert "<table>" in html
