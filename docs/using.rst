@@ -24,6 +24,15 @@ Accessing and setting fields
     dict(cfg.items())  # {'iterations': 200, ..., 'mode': 'thorough', ...}
 
 
+Updating
+--------
+
+:meth:`~cfx.Config.update` applies several field changes at once.  Each
+value goes through the same descriptor validation as direct assignment::
+
+    cfg.update({"iterations": 50, "threshold": 0.8})
+
+
 Comparison
 ----------
 
@@ -54,15 +63,6 @@ two instances of the same type::
 
 See :ref:`sharp-edges-copy` for important behaviour to know about when the
 config has callable (computed) defaults.
-
-
-Updating
---------
-
-:meth:`~cfx.Config.update` applies several field changes at once.  Each
-value goes through the same descriptor validation as direct assignment::
-
-    cfg.update({"iterations": 50, "threshold": 0.8})
 
 
 .. _freeze:

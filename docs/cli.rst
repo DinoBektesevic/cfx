@@ -2,7 +2,7 @@ CLI integration
 ===============
 
 
-cfx can generate command-line interfaces for your config classes
+Generate command-line interfaces for your config classes
 automatically, saving you from writing custom argument parsing code.
 cfx generates argparse and Click CLI options directly from your config
 classes.  Every non-static field becomes a flag; nested sub-configs use

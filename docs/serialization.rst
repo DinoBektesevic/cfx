@@ -2,8 +2,10 @@ Serialization
 =============
 
 Configs can be persisted to a dict, YAML, or TOML.  Choose based on context:
-dict for programmatic use, YAML for human-readable files, TOML for
-structured config files.
+
+- **dict** — programmatic use, in-process transfer
+- **YAML** — human-readable files, easy to hand-edit
+- **TOML** — structured config files with strong typing
 
 
 dict

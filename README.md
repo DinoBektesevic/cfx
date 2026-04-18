@@ -16,9 +16,10 @@
 
 # cfx
 
-Declare configuration fields next to the classes that use them.
-Each field carries its own default value, type checking, and documentation.
-Compose flat and nested configs freely — the display shows a unified tree and table.
+Declare configuration fields next to the classes that use them. Each field
+carries its own default, type checking, and documentation. Compose any set of
+configs into a larger one, flat or nested, and get serialization, CLI
+integration, and a self-documenting display for free.
 
 ```python
 from cfx import Config, Float, String, Bool
@@ -56,6 +57,14 @@ SourceConfig   | n_sigma    | 3.0    | Detection threshold in sigma
 CalibConfig    | scale      | 1.0    | Flux scale factor
 CalibConfig    | zero_point | 25.0   | Photometric zero-point
 ```
+
+- **Validated fields** — typos and bad values raise immediately at the point of assignment, not silently hours later.
+- **Self-documenting** — `print(cfg)` renders a tree of the config hierarchy followed by a unified table of all fields, nested included. In Jupyter the same layout renders as HTML automatically via `_repr_html_`.
+- **Composable** — assemble configs from multiple subsystem configs, flat or nested, or mix both styles. The same fields can be organized deeply for precision in code and re-exposed shallowly for users — bridging the gap between code structure and user-facing logic.
+- **Serializable** — round-trip to/from dict, YAML, and TOML with one method call.
+- **CLI-ready** — every config exposes `add_arguments` / `from_argparse` for argparse and `click_options` / `from_click` for Click. Nested sub-configs use dot-notation flags (e.g. `--source.n-sigma`).
+- **Extensible** — subclass `ConfigField` to add your own field types with custom validation and normalization.
+- **Zero hard dependencies** — YAML, TOML, and Click support are optional.
 
 ## Installation
 

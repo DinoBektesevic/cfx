@@ -1,11 +1,6 @@
 Fields
 ======
 
-
-
-Field types
------------
-
 All field types inherit from :class:`~cfx.ConfigField` and accept a
 default value as their first argument and a ``doc`` string as their second.
 Most also accept constraint parameters (``minval``, ``maxsize``, etc.) and a
@@ -24,7 +19,7 @@ Most also accept constraint parameters (``minval``, ``maxsize``, etc.) and a
      - Explicit escape hatch.  No validation; signals to readers that the
        absence of constraints is intentional.
    * - :class:`~cfx.Bool`
-     - ``True`` or ``False``.  Rejects ``int`` — unlike Python's own
+     - ``True`` or ``False``.  Rejects ``int`` - unlike Python's own
        truthiness, ``1`` is not a ``bool`` here.
    * - :class:`~cfx.Int`
      - Integer.  Optional ``minval`` and ``maxval``.
@@ -40,7 +35,7 @@ Most also accept constraint parameters (``minval``, ``maxsize``, etc.) and a
    * - :class:`~cfx.Options`
      - One value from a fixed set.  Default is the first option unless
        ``default_value`` is supplied.  **Note:** the constructor takes
-       ``(options, doc, default_value=None, ...)`` — the allowed choices come
+       ``(options, doc, default_value=None, ...)`` - the allowed choices come
        first, unlike most other field types where the default value comes first.
    * - :class:`~cfx.MultiOptions`
      - A ``set`` that is a subset of a fixed set of choices.  Same
@@ -53,7 +48,7 @@ Most also accept constraint parameters (``minval``, ``maxsize``, etc.) and a
        randomly at runtime".  Semantically distinct from ``Int(None, ...)``.
    * - :class:`~cfx.Range`
      - A ``(min, max)`` tuple.  Validates ``min < max``.  Linear ranges
-       only — see `Defining your own field`_ for angular or cyclical ranges.
+       only - see `Defining your own field`_ for angular or cyclical ranges.
    * - :class:`~cfx.List`
      - A list.  Optional ``element_type``, ``minlen``, and ``maxlen``.
    * - :class:`~cfx.Dict`
@@ -84,7 +79,7 @@ to set them::
 
 Static values are shared across all instances and subclasses that do not
 re-declare the field.  ``from_dict()`` ignores any serialized value for a
-static field — the class-level default always wins.
+static field - the class-level default always wins.
 
 To make a whole *instance* read-only after construction (rather than
 individual fields), use :ref:`freeze` instead.
@@ -105,8 +100,8 @@ when no explicit value has been stored on the instance::
 
     os.environ["DB_HOST"] = "db.example.com"
     cfg = DatabaseConfig()
-    cfg.host    # 'db.example.com' — from env var
-    cfg.port    # 5432 — env var not set; falls back to default
+    cfg.host    # 'db.example.com' - from env var
+    cfg.port    # 5432 - env var not set; falls back to default
 
 The lookup priority on every field read is:
 
@@ -125,7 +120,7 @@ This makes it straightforward to vary the environment between test cases::
     cfg.host    # 'primary.example.com'
 
     os.environ["DB_HOST"] = "replica.example.com"
-    cfg.host    # 'replica.example.com' — re-read each time
+    cfg.host    # 'replica.example.com' - re-read each time
 
 Once an explicit value is stored, the environment variable is no longer
 consulted::
@@ -142,13 +137,17 @@ The raw environment string is parsed with the field's
 Cross-field validation
 ----------------------
 
-Override :meth:`~cfx.Config.validate` to enforce constraints that span
-multiple fields.  The base implementation does nothing.
+Configs contain :class:`~cfx.ConfigField` instances, each of which validates
+only its own value, they cannot enforce relationships between fields.
+Override :meth:`~cfx.Config.validate` on the config class to enforce
+cross-field consistency.  By default the config-level validator performs no
+checks.
 
 ``validate()`` is called automatically by :meth:`~cfx.Config.from_dict`,
 :meth:`~cfx.Config.from_yaml`, and :meth:`~cfx.Config.from_toml` after
-loading.  Individual field assignments do **not** trigger it — call it
-manually after interactive edits to recheck cross-field constraints::
+loading.  Individual field assignments do **not** trigger it.  You must ensure
+cross-field consistency by manually invoking it at critical points in your
+code::
 
     class BandConfig(Config):
         low = Float(1.0, "Lower frequency bound", minval=0.0)
@@ -175,13 +174,18 @@ Call ``validate()`` manually at any time to recheck after interactive edits::
 Defining your own field
 -----------------------
 
-Subclass :class:`~cfx.ConfigField` and override :meth:`validate` to add
-type or constraint checks.  Override :meth:`__set__` when you also need to
-**transform** the value before storing it.
+When the built-in types don't fit your domain (non-linear ranges, custom
+unit normalization, domain-specific enums), extending
+:class:`~cfx.ConfigField` is straightforward.  Subclass it and override:
 
-:class:`~cfx.Range` only supports linear ``(min, max)`` pairs — it cannot
-represent an angular range like 350° to 10°, because "close" is
-domain-specific.  A custom field handles this naturally::
+- :meth:`validate`: adds type or constraint checks
+- :meth:`__set__`: applies transformations to the value before storing it
+  (normalization, type coercion, wrapping, etc.)
+
+:class:`~cfx.Range` only supports linear ``(min, max)`` pairs.  Angles wrap
+around: 359° and 1° are only 2° apart, but a linear range has no way to
+express that.  A custom field handles this naturally, normalizing any
+assigned value into ``[0, 360)``::
 
     from cfx import Config, ConfigField, Float
 
@@ -208,9 +212,9 @@ domain-specific.  A custom field handles this naturally::
 
     cfg = SurveyConfig()
     cfg.heading = 370.0
-    cfg.heading             # 10.0  — normalized to [0, 360)
+    cfg.heading             # 10.0  - normalized to [0, 360)
     cfg.heading = -30.0
-    cfg.heading             # 330.0 — wrapped around
+    cfg.heading             # 330.0 - wrapped around
 
     print(cfg)
 
@@ -223,25 +227,72 @@ domain-specific.  A custom field handles this naturally::
     SurveyConfig | bearing | 45.0  | Bearing to target in degrees
     SurveyConfig | radius  | 10.0  | Search radius in meters
 
-Any field type also accepts a **callable** as its default value.  The callable
+Computed fields
+---------------
+
+Any field type accepts a **callable** as its default value.  The callable
 receives the live config instance and is evaluated on every read where no
-explicit value has been stored::
+explicit value has been stored.
+
+A lambda works well for simple derived fields.  Here, multiple detection
+thresholds scale automatically from a single measured standard deviation.
+``sigma3`` is marked ``static=True``, i.e. by definition it is ``stddev * 3``
+and cannot be overridden::
+
+    class DetectionConfig(Config):
+        stddev = Float(1.0, "Measured standard deviation")
+        sigma3 = Float(lambda self: self.stddev * 3, "3-sigma threshold",
+                       static=True)
+        sigma5 = Float(lambda self: self.stddev * 5, "5-sigma threshold")
+        sigma7 = Float(lambda self: self.stddev * 7, "7-sigma threshold")
+
+    cfg = DetectionConfig()
+    cfg.stddev = 2.0
+    cfg.sigma3   # 6.0
+    cfg.sigma5   # 10.0
+    cfg.sigma7   # 14.0
+
+    cfg.sigma5 = 99.0   # store an explicit override
+    cfg.sigma5          # 99.0 - stored value; formula no longer called
+
+    cfg.sigma3 = 99.0   # AttributeError: Cannot set a static config field.
+
+A named function is better when the logic is non-trivial or you want to
+reuse it across config classes.  Write the function with explicit arguments,
+then use a lambda to wire it to the config's fields::
+
+    def exponential_backoff(base_interval, attempt):
+        return base_interval * (2 ** attempt)
 
     class RetryConfig(Config):
-        base_interval = Float(1.0, "Base interval in seconds", minval=0.0)
-        retry_interval = Float(
-            lambda self: self.base_interval * 3,
-            "Retry interval; defaults to 3× base until overridden"
+        base_interval = Float(1.0, "Base retry interval in seconds", minval=0.0)
+        attempt = Int(0, "Current retry attempt", minval=0)
+        interval = Float(
+            lambda self: exponential_backoff(self.base_interval, self.attempt),
+            "Retry interval for current attempt"
         )
 
     cfg = RetryConfig()
-    cfg.retry_interval           # 3.0 — computed from base_interval
+    cfg.interval    # 1.0 - attempt 0: 1.0 * 2^1
 
-    cfg.base_interval = 2.0
-    cfg.retry_interval           # 6.0 — recomputed
+    cfg.attempt = 1
+    cfg.interval    # 2.0 - attempt 1: 1.0 * 2^2
 
-    cfg.retry_interval = 99.0    # store an explicit value
-    cfg.retry_interval           # 99.0 — stored value; formula no longer called
+    cfg.attempt = 3
+    cfg.interval    # 8.0 - attempt 3: 1.0 * 2^3
+
+Because ``exponential_backoff`` is an ordinary function, it can be reused
+in a different config without being rewritten::
+
+    class AggressiveRetryConfig(Config):
+        base_interval = Float(0.5, "Base retry interval in seconds", minval=0.0)
+        attempt = Int(0, "Current retry attempt", minval=0)
+        interval = Float(
+            lambda self: exponential_backoff(self.base_interval, self.attempt),
+            "Retry interval for current attempt"
+        )
+
+     exponential_backoff(0.5, 2)
 
 See :doc:`advanced` for how to normalize a custom field's ``defaultval`` in
 its ``__init__``, and for the full interaction between ``validate`` and

@@ -11,8 +11,8 @@ when using callable defaults, TOML serialization, or CLI string parsing.
 
 .. _sharp-edges-copy:
 
-copy() and callable defaults
-----------------------------
+Callable fields and copy()
+--------------------------
 
 :meth:`~cfx.Config.copy` distinguishes between fields that have an
 explicitly stored value and fields whose value comes from a callable default.
@@ -21,7 +21,7 @@ the new instance so they recompute lazily from the copy's own field values::
 
     class RetryConfig(Config):
         base = Float(1.0, "Base interval")
-        retry = Float(lambda self: self.base * 3, "3× base")
+        retry = Float(lambda self: self.base * 3, "3* base")
 
     cfg = RetryConfig()   # retry NOT stored (callable default)
     cfg2 = cfg.copy()
@@ -51,7 +51,7 @@ explicitly set::
 
     class RetryConfig(Config):
         base = Float(1.0, "Base interval")
-        retry = Float(lambda self: self.base * 3, "3× base")
+        retry = Float(lambda self: self.base * 3, "3* base")
 
     cfg = RetryConfig()
     d = cfg.to_dict()     # UserWarning: 'retry' has a callable default…
