@@ -1,3 +1,30 @@
+# cfx 0.3.0 (2026-04-18)
+
+## Features
+
+- Added `transient` keyword to all field types. Callable defaults are now skipped
+  during serialization when no explicit value has been stored — the callable
+  reconstructs the value naturally on deserialization. Set `transient=False` to
+  preserve the old snapshot behaviour instead.
+- Config now implements `__iter__`, completing the dict-like protocol. `for key in cfg` works the same as `for key in cfg.keys()`.
+
+## Bug Fixes
+
+- Unroll composition (`method="unroll"`) now raises `ValueError` at class-definition time when two components share a field name. Previously the conflict was silently resolved by ordering. Override a component field by redeclaring it directly on the composing class.
+
+## Removals
+
+- Removed the `UserWarning` that fired when serializing a config with callable defaults. The warning fired even for correct usage and gave no actionable guidance. The correct behaviour (skip transient fields; use `transient=False` for snapshots) is now the default — see the `transient` feature entry.
+
+## Documentation
+
+- Composition docs updated: unroll field resolution order is now documented explicitly (inherited → components left-to-right → own fields), parallel name conflicts across components are called out with an error example, and the "first component wins" wording that described the old silent-override behaviour has been removed.
+
+## Internal
+
+- Migrated CI linting from flake8 to ruff. Added pre-commit hook running ruff format and ruff check.
+
+
 # cfx 0.2.1 (2026-04-17)
 
 ## Bug Fixes
