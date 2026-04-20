@@ -27,6 +27,10 @@
 
 ## Internal
 
+- `_ConfigType` metaclass removed. Field collection and component wiring now
+  happen in `Config.__init_subclass__`, which runs at class-definition time
+  for every subclass. Behaviour is identical; the metaclass was an
+  implementation detail.
 - `ConfigMeta` renamed to `_ConfigType` to signal that it is not part of the
   public API and will be replaced by `__init_subclass__` in a future release.
 - Internal `getattr(cls, field_name)` call sites in `config.py` and

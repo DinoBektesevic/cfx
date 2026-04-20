@@ -1,8 +1,9 @@
-"""Core Config class and its metaclass.
+"""Core Config class.
 
-This module provides `_ConfigType`, the metaclass that collects descriptor
-fields at class-definition time, and `Config`, the base class that all
-user-defined configuration classes inherit from.
+This module provides `Config`, the base class that all user-defined
+configuration classes inherit from.  Field collection and component wiring
+happen in `Config.__init_subclass__`, which runs at class-definition time for
+every subclass.
 """
 
 import datetime
@@ -47,84 +48,7 @@ class FrozenConfigError(AttributeError):
     """
 
 
-class _ConfigType(type):
-    """`Config` metaclass that collects field descriptors at class creation.
-
-    At class-definition time, `_ConfigType` inspects the class body and all
-    bases in MRO order to build a ``_fields`` dict that maps field names to
-    their `ConfigField` descriptors. This dict is attached to the new class
-    and drives iteration, serialization, and display.
-
-    When ``components=`` is provided, each component class is stored in
-    ``_nested_classes`` and instantiated fresh in `Config.__init__`, so every
-    parent instance gets its own independent sub-config objects.
-
-    Parameters
-    ----------
-    cls_name : `str`
-        Name of the class being created.
-    bases : `tuple`
-        Base classes.
-    attrs : `dict`
-        Class body attributes.
-    components : `list[Config]`, optional
-        Additional config classes to compose into this one as nested
-        sub-configs.
-    """
-
-    @staticmethod
-    def _unroll_defaults(configs):
-        """Collect field descriptors from a list of Config classes."""
-        conf = {}
-        if configs is None:
-            return conf
-        for cfg in reversed(configs):
-            if hasattr(cfg, "_fields"):
-                conf.update(cfg._fields)
-        return conf
-
-    @staticmethod
-    def _duplicate_confids(components):
-        """Return confids that are shared by multiple components."""
-        seen, dupes = set(), set()
-        for comp in components or []:
-            (dupes if comp.confid in seen else seen).add(comp.confid)
-        return dupes
-
-    def __new__(cls, cls_name, bases, attrs, **kwargs):
-        cls_fields = {
-            k: v for k, v in attrs.items() if isinstance(v, ConfigField)
-        }
-        components = kwargs.pop("components", None)
-        method = kwargs.pop("method", None)
-        if method == "unroll":
-            raise TypeError(
-                "method='unroll' has been removed. "
-                "Use nested composition (the default when components= is "
-                "provided) instead."
-            )
-
-        if "confid" not in attrs:
-            attrs["confid"] = cls_name.lower()
-
-        if components is not None:
-            if dupes := cls._duplicate_confids(components):
-                raise ValueError(f"Duplicate confids in components: {dupes}")
-            attrs["_nested_classes"] = {c.confid: c for c in components}
-            for confid, nested_cls in attrs["_nested_classes"].items():
-                attrs[confid] = ComponentRef(confid, nested_cls)
-            attrs["_fields"] = cls_fields
-        else:
-            attrs["_nested_classes"] = {}
-            config = cls._unroll_defaults(bases)
-            config.update(cls_fields)
-            attrs["_fields"] = config
-            attrs.update(config)
-
-        return super().__new__(cls, cls_name, bases, attrs, **kwargs)
-
-
-class Config(metaclass=_ConfigType):
+class Config:
     """Base class for all user-defined configuration classes.
 
     Subclass `Config` and declare `ConfigField` instances as class attributes
@@ -168,16 +92,52 @@ class Config(metaclass=_ConfigType):
     field2 | opt_b | An options field
     """
 
-    confid: str
+    confid: str = "config"
     """Name of this config class when it's used as a component config.
     Automatically set as the lowercase version of the class name.
     """
 
-    _fields: ClassVar[dict[str, ConfigField]]
-    """Mapping of field name to descriptor, set by the metaclass."""
+    _fields: ClassVar[dict[str, ConfigField]] = {}
+    """Mapping of field name to descriptor."""
 
-    _nested_classes: ClassVar[dict[str, type]]
-    """Mapping of confid to component Config class, set by the metaclass."""
+    _nested_classes: ClassVar[dict[str, type]] = {}
+    """Mapping of confid to component Config class."""
+
+    def __init_subclass__(cls, components=None, method=None, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        if method == "unroll":
+            raise TypeError(
+                "method='unroll' has been removed. "
+                "Use nested composition (the default when components= is "
+                "provided) instead."
+            )
+
+        if "confid" not in vars(cls):
+            cls.confid = cls.__name__.lower()
+
+        own_fields = {
+            k: v for k, v in vars(cls).items() if isinstance(v, ConfigField)
+        }
+
+        if components is not None:
+            seen: set[str] = set()
+            dupes: set[str] = set()
+            for comp in components:
+                (dupes if comp.confid in seen else seen).add(comp.confid)
+            if dupes:
+                raise ValueError(f"Duplicate confids in components: {dupes}")
+            cls._nested_classes = {c.confid: c for c in components}
+            for confid, nested_cls in cls._nested_classes.items():
+                setattr(cls, confid, ComponentRef(confid, nested_cls))
+            cls._fields = own_fields
+        else:
+            cls._nested_classes = {}
+            inherited: dict[str, ConfigField] = {}
+            for base in reversed(cls.__bases__):
+                if hasattr(base, "_fields"):
+                    inherited.update(base._fields)
+            cls._fields = {**inherited, **own_fields}
 
     def __init__(self, **kwargs):
         # Nested mode: instantiate each component class fresh so that different
