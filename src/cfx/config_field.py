@@ -8,6 +8,8 @@ directly on `Config` class definitions. Subclass `ConfigField` and override
 
 import os
 
+from .refs import FieldRef
+
 __all__ = ["ConfigField"]
 
 
@@ -228,10 +230,10 @@ class ConfigField:
         Returns
         -------
         value : `object`
-            The field value, or this descriptor when ``obj`` is `None`.
+            The field value, or a `FieldRef` path proxy when ``obj`` is `None`.
         """
         if obj is None:
-            return self
+            return FieldRef(self.public_name, None)
         if self.static:
             return self.defaultval
         sentinel = object()

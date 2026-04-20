@@ -193,7 +193,7 @@ def table_rows(cfg):
     """
     rows = []
     for key, value in cfg.items():
-        field = getattr(type(cfg), key)
+        field = type(cfg)._fields[key]
         rows.append((key, field.to_string(value), field.doc))
     return rows
 
@@ -218,7 +218,7 @@ def flat_table_rows(cfg):
     cls = type(cfg)
     rows = []
     for key, value in cfg.items():
-        field = getattr(cls, key)
+        field = cls._fields[key]
         rows.append((cls.__name__, key, field.to_string(value), field.doc))
     for confid in getattr(cls, "_nested_classes", {}):
         rows.extend(flat_table_rows(getattr(cfg, confid)))

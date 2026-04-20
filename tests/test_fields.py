@@ -53,11 +53,15 @@ class TestConfigField:
         c1.f = "changed"
         assert c2.f == "x"
 
-    def test_class_access_returns_descriptor(self):
+    def test_class_access_returns_fieldref(self):
+        from cfx.refs import FieldRef
+
         class C(Config):
             f = ConfigField("x", "doc")
 
-        assert isinstance(C.f, ConfigField)
+        ref = C.f
+        assert isinstance(ref, FieldRef)
+        assert ref._path == "f"
 
     def test_static_field_cannot_be_set(self):
         class C(Config):
@@ -380,13 +384,13 @@ class TestPath:
             f = Path("./out", "doc")
 
         with pytest.raises(TypeError):
-            C.f.validate(42)
+            C._fields["f"].validate(42)
 
     def test_string_default_normalized_to_path(self):
         class C(Config):
             f = Path("./out", "doc")
 
-        assert isinstance(C.f.defaultval, pathlib.Path)
+        assert isinstance(C._fields["f"].defaultval, pathlib.Path)
 
 
 # ---------------------------------------------------------------------------
@@ -715,7 +719,7 @@ class TestEnvVar:
 
         c = C()
         _ = c.f  # access it
-        descriptor = type(c).f
+        descriptor = type(c)._fields["f"]
         assert descriptor.private_name not in c.__dict__
 
 

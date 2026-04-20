@@ -1,3 +1,27 @@
+# cfx 0.5.0 (unreleased)
+
+## Features
+
+- `FieldRef`: accessing a field or component on a `Config` *class* (rather
+  than an instance) now returns a `FieldRef` path proxy instead of the raw
+  descriptor. `FieldRef` objects chain attribute access to build validated
+  dotpath strings and are the preferred input to `Alias` and `Mirror` — pass
+  `Alias(SomeConfig.component.field)` instead of `Alias("component.field")`
+  to keep paths refactorable via IDE rename and go-to-definition.
+- `ComponentRef`: each component slot on a `Config` class now has a
+  descriptor installed automatically, so `SomeConfig.component` returns a
+  `FieldRef` that can be chained (`SomeConfig.component.field`). Instance
+  access is unchanged.
+
+## Internal
+
+- `ConfigMeta` renamed to `_ConfigType` to signal that it is not part of the
+  public API and will be replaced by `__init_subclass__` in a future release.
+- Internal `getattr(cls, field_name)` call sites in `config.py` and
+  `display.py` that previously relied on `ConfigField.__get__` returning the
+  descriptor on class access have been updated to use `cls._fields[name]`
+  directly.
+
 # cfx 0.4.0 (unreleased)
 
 ## Removals

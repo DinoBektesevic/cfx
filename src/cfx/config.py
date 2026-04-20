@@ -1,6 +1,6 @@
 """Core Config class and its metaclass.
 
-This module provides `ConfigMeta`, the metaclass that collects descriptor
+This module provides `_ConfigType`, the metaclass that collects descriptor
 fields at class-definition time, and `Config`, the base class that all
 user-defined configuration classes inherit from.
 """
@@ -34,6 +34,7 @@ except ImportError:
 
 from .cli import _CLI_UNSET, field_to_argparse_kwargs, field_to_click_option
 from .config_field import ConfigField
+from .refs import ComponentRef
 
 __all__ = ["Config", "FrozenConfigError"]
 
@@ -46,10 +47,10 @@ class FrozenConfigError(AttributeError):
     """
 
 
-class ConfigMeta(type):
+class _ConfigType(type):
     """`Config` metaclass that collects field descriptors at class creation.
 
-    At class-definition time, `ConfigMeta` inspects the class body and all
+    At class-definition time, `_ConfigType` inspects the class body and all
     bases in MRO order to build a ``_fields`` dict that maps field names to
     their `ConfigField` descriptors. This dict is attached to the new class
     and drives iteration, serialization, and display.
@@ -110,6 +111,8 @@ class ConfigMeta(type):
             if dupes := cls._duplicate_confids(components):
                 raise ValueError(f"Duplicate confids in components: {dupes}")
             attrs["_nested_classes"] = {c.confid: c for c in components}
+            for confid, nested_cls in attrs["_nested_classes"].items():
+                attrs[confid] = ComponentRef(confid, nested_cls)
             attrs["_fields"] = cls_fields
         else:
             attrs["_nested_classes"] = {}
@@ -121,7 +124,7 @@ class ConfigMeta(type):
         return super().__new__(cls, cls_name, bases, attrs, **kwargs)
 
 
-class Config(metaclass=ConfigMeta):
+class Config(metaclass=_ConfigType):
     """Base class for all user-defined configuration classes.
 
     Subclass `Config` and declare `ConfigField` instances as class attributes
@@ -187,7 +190,7 @@ class Config(metaclass=ConfigMeta):
         # are left unset so ConfigField.__get__ evaluates them lazily.
         for k, v in self._fields.items():
             if (
-                not getattr(type(self), k).static
+                not v.static
                 and not callable(v.defaultval)
                 and v.env is None
                 and not v.transient
@@ -417,7 +420,7 @@ class Config(metaclass=ConfigMeta):
             setattr(new, confid, getattr(self, confid).copy())
 
         for k in self.keys():
-            descriptor = getattr(type(self), k)
+            descriptor = type(self)._fields[k]
             if descriptor.static:
                 continue
             # Only copy fields that have an explicitly stored value in __dict__
@@ -510,7 +513,7 @@ class Config(metaclass=ConfigMeta):
                 if strict:
                     raise KeyError(f"Unknown field {k!r} for {cls.__name__!r}")
                 continue
-            if not getattr(cls, k).static:
+            if not cls._fields[k].static:
                 setattr(instance, k, v)
         for confid, sub_cls in nested_classes.items():
             sub_dict = mapping.get(confid, {})
@@ -534,7 +537,7 @@ class Config(metaclass=ConfigMeta):
         nested_classes = type(self)._nested_classes
         result = {}
         for k in self.keys():
-            descriptor = getattr(type(self), k)
+            descriptor = type(self)._fields[k]
             if (
                 descriptor.private_name not in self.__dict__
                 and descriptor.transient
@@ -715,8 +718,8 @@ class Config(metaclass=ConfigMeta):
                 tgtconf = instance
             # Override the value if the field exists and is not static.
             # Unknown keys (f.e. config_file) are silently skipped.
-            descriptor = getattr(type(tgtconf), field, None)
-            if descriptor is None or getattr(descriptor, "static", False):
+            descriptor = type(tgtconf)._fields.get(field)
+            if descriptor is None or descriptor.static:
                 continue
             setattr(tgtconf, field, value)
 
