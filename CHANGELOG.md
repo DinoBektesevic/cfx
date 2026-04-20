@@ -1,3 +1,29 @@
+# cfx 0.4.0 (unreleased)
+
+## Removals
+- `method="unroll"` composition mode removed. Defining a class with
+  `method="unroll"` now raises `TypeError` at class-definition time. Use
+  nested composition (the default when `components=` is provided) instead.
+
+## Bug Fixes
+- `diff()` now recurses into nested sub-configs. Differences in nested fields
+  appear with dot-notation keys (e.g. `"search.n_sigma"`). Previously nested
+  changes were silently invisible.
+- `update()` now accepts nested confid keys: pass a `dict` to update fields
+  within a sub-config, or a `Config` instance to replace it. Previously
+  passing a nested confid raised `KeyError`.
+- `freeze()` now propagates to all nested sub-configs. Previously `freeze()`
+  only blocked writes on flat fields of the top-level config.
+- `freeze()` now also prevents replacing a nested sub-config via attribute
+  assignment (e.g. `cfg.search = other`).
+- CLI: `--field none` for `Seed` (and any field whose `from_string` returns
+  `None`) now correctly applies `None` as the field value. Previously the
+  `None` return from `from_string` was mistaken for "flag not supplied" and
+  silently ignored.
+- Nested `components=` are now stored in declaration order. Previously the
+  internal dict had components in reverse order, causing sub-configs to appear
+  in reversed order in `print(cfg)` and iteration.
+
 # cfx 0.3.0 (2026-04-18)
 
 ## Features
