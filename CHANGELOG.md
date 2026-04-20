@@ -2,6 +2,11 @@
 
 ## Features
 
+- `Mirror`: a config descriptor that keeps two or more dotpaths in sync.
+  Declaring `shared = Mirror("a.x", "b.x")` on a `Config` fans writes to
+  every path and asserts agreement on read, raising `ValueError` with a
+  diff if the paths disagree.  Accepts `FieldRef` objects or plain dotpath
+  strings.
 - `FieldRef`: accessing a field or component on a `Config` *class* (rather
   than an instance) now returns a `FieldRef` path proxy instead of the raw
   descriptor. `FieldRef` objects chain attribute access to build validated

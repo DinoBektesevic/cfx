@@ -24,3 +24,4 @@ on the class that uses them, using Python descriptors::
 from .config import *  # noqa: F401, F403
 from .config_field import *  # noqa: F401, F403
 from .types import *  # noqa: F401, F403
+from .views import *  # noqa: F401, F403
