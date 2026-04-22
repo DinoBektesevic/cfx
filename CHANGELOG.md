@@ -1,3 +1,58 @@
+# cfx 0.6.0 (2026-04-21)
+
+## Features
+
+- Schema versioning: declare ``_version = <int>`` on a ``Config`` class to
+  embed the schema version in ``to_dict()`` output.  ``from_dict()`` emits a
+  ``UserWarning`` when the stored version differs from the class version, and
+  ignores the ``_version`` key during field assignment (including under
+  ``strict=True``).
+- ``Field()``: annotation-native field factory.  Declare fields with a type
+  annotation and ``Field()`` as the right-hand side — the concrete
+  ``ConfigField`` subclass is inferred at class-definition time::
+
+      from cfx import Config, Field
+      from typing import Literal
+
+      class SearchConfig(Config):
+          n_sigma: float = Field(5.0, "Detection threshold", minval=0.0)
+          method: Literal["DBSCAN", "RANSAC"] = Field("DBSCAN", "Algorithm")
+          verbose: bool = Field(False, "Enable verbose output")
+
+  Supported annotations: ``bool``, ``int``, ``float``, ``str``,
+  ``pathlib.Path``, ``Literal[...]`` → ``Options``,
+  ``set[Literal[...]]`` → ``MultiOptions``, ``list[T]`` → ``List``,
+  ``tuple[T, T]`` → ``Range``, ``int | None`` → ``Seed``,
+  ``int | float`` → ``Scalar``, ``datetime.date/time/datetime``,
+  ``dict``, ``typing.Any``, ``Final[T]`` (implies ``static=True``).
+  Callable defaults and all constraint kwargs (``minval=``, ``env=``,
+  ``static=``, ``transient=``, etc.) pass through to the resolved field type.
+  Explicit field types remain fully supported and can coexist with ``Field()``
+  on the same class.
+
+## Documentation
+
+- ``docs/`` refactored to split out Fields into 7 separate sections. Add `Fields`, `Field Modifiers` and `Custom Field` documents, expand the subsection in `Fields` to cover the type inferred and explicit fields. (https://github.com/DinoBektesevic/cfx/issues/docs_refactor)
+- ``docs/fields.rst`` rewritten: ``Field()`` and annotation syntax are the
+  primary declaration style, with explicit types documented as an escape hatch
+  for custom validation and domain-specific fields.  Annotation → field type
+  mapping table added.  ``docs/index.rst``, ``docs/defining.rst``, and
+  ``README.md`` updated to use ``Field()`` throughout.
+
+## Internal
+
+- Field-related code reorganized into a ``src/cfx/types/`` sub-package:
+  ``config_field.py`` (``ConfigField`` base), ``types.py`` (concrete field
+  types, ``Alias``, ``Mirror``), and ``typed_field.py`` (``Field``,
+  ``FieldSpec``, ``resolve_field_spec``).  ``types/__init__.py`` re-exports
+  the full public surface — all existing ``from cfx import ...`` imports are
+  unaffected.  Shared dotpath utilities (``walk``, ``walk_set``,
+  ``strip_none``) extracted into ``src/cfx/utils.py``.  ``Alias`` and
+  ``Mirror`` moved from ``views.py`` into ``types/types.py`` alongside the
+  other field descriptor classes.  ``src/cfx/__init__.py`` rewritten with
+  explicit re-exports; no bare wildcard imports.
+
+
 # cfx 0.5.0 (2026-04-19)
 
 ## Features
