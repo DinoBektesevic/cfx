@@ -19,6 +19,7 @@ For custom field types or advanced validation, import explicit types from
 
 import datetime
 import pathlib
+import types  # UnionType, support for int|float expressions in Py<3.14
 import typing as t
 
 from .types import (
@@ -153,7 +154,7 @@ def resolve_field_spec(name, spec, annotation):
         return Range(spec.default, spec.doc, **kw)
 
     # Union types
-    if origin is t.Union:
+    if origin is t.Union or origin is types.UnionType:
         non_none = [a for a in args if a is not type(None)]
         if len(non_none) == 1 and type(None) in args and non_none[0] is int:
             return Seed(spec.default, spec.doc, **kw)
