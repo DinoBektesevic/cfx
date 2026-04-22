@@ -74,18 +74,15 @@ Rules:
 
 The complete Python attribute path maps to the flag name like this:
 
-.. list-table::
-   :header-rows: 1
-   :widths: 50 50
-
-   * - Python path
-     - Flag
-   * - ``cfg.name``
-     - ``--name``
-   * - ``cfg.worker.threads``
-     - ``--worker.threads``
-   * - ``cfg.worker.format.precision``
-     - ``--worker.format.precision``
++----------------------------------+-------------------------------+
+| Python path                      | Flag                          |
++==================================+===============================+
+| ``cfg.name``                     | ``--name``                    |
++----------------------------------+-------------------------------+
+| ``cfg.worker.threads``           | ``--worker.threads``          |
++----------------------------------+-------------------------------+
+| ``cfg.worker.format.precision``  | ``--worker.format.precision`` |
++----------------------------------+-------------------------------+
 
 Pass a config file to load base values, then override with flags::
 

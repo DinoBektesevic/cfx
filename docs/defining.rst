@@ -2,21 +2,22 @@ Defining a config
 =================
 
 
-Subclass :class:`~cfx.Config` and declare field descriptors as class
-attributes.  Each field carries its default value, type, validation
+Subclass :class:`~cfx.Config` and declare fields with a type annotation and
+:func:`~cfx.Field`.  Each field carries its default value, validation
 constraints, and documentation in one place::
 
-    from cfx import Config, Float, Int, String, Options, Bool
+    from cfx import Config, Field
+    from typing import Literal
 
     class ProcessingConfig(Config):
         """Configuration for the main processing pipeline."""
         confid = "processing"
 
-        iterations = Int(100, "Number of iterations", minval=1)
-        threshold = Float(0.5, "Acceptance threshold", minval=0.0, maxval=1.0)
-        label = String("run_01", "Human-readable run label")
-        mode = Options(("fast", "balanced", "thorough"), "Processing mode")
-        verbose = Bool(False, "Enable verbose logging")
+        iterations: int = Field(100, "Number of iterations", minval=1)
+        threshold: float = Field(0.5, "Acceptance threshold", minval=0.0, maxval=1.0)
+        label: str = Field("run_01", "Human-readable run label")
+        mode: Literal["fast", "balanced", "thorough"] = Field("fast", "Processing mode")
+        verbose: bool = Field(False, "Enable verbose logging")
 
 ``print(cfg)`` renders the full schema as a table - no extra code required::
 
@@ -47,6 +48,10 @@ the same field validation::
     cfg["mode"] = "turbo"  # ValueError: Expected 'turbo' to be one of ...
     cfg["no_such"] = 1  # KeyError: 'no_such'
 
+See :doc:`fields` for the full annotation → field type mapping and
+:doc:`field-modifiers` for callable defaults, static fields, and environment
+variable support.
+
 
 .. _defining-a-config-inheritance:
 
@@ -56,30 +61,25 @@ Inheritance
 A child class inherits every field from its parent and can add new ones or
 change defaults.  Fields from the full MRO are collected automatically::
 
-    from cfx import Config, Int, Float, Path, MultiOptions
+    from cfx import Config, Field
+    from typing import Literal
 
     class DetailedConfig(ProcessingConfig):
         """Adds output and diagnostics fields to the processing pipeline."""
         confid = "detailed"
 
-        output_dir = Path("./results", "Directory for output files")
-        max_rows = Int(10_000, "Maximum rows per output file", minval=1)
-        tags = MultiOptions(
-            ("debug", "profile", "audit"),
-            "Diagnostic tags to enable",
-            default_value=set(),
-        )
+        output_dir: str = Field("./results", "Directory for output files")
+        max_rows: int = Field(10_000, "Maximum rows per output file", minval=1)
 
     cfg = DetailedConfig()
-    cfg.iterations  # 100 - inherited from ProcessingConfig
-    cfg.output_dir  # PosixPath('results') - new field; string coerced to Path
-    cfg.tags  # set() - new field with an empty-set default
+    cfg.iterations   # 100 - inherited from ProcessingConfig
+    cfg.output_dir   # './results' - new field
 
 A child can also change the **default** of a parent field by re-declaring it::
 
     class QuietConfig(ProcessingConfig):
         confid = "quiet"
-        verbose = Bool(True, "Enable verbose logging")  # default changed to True
+        verbose: bool = Field(True, "Enable verbose logging")  # default changed
 
     QuietConfig().verbose  # True
 
@@ -87,17 +87,15 @@ A child can also change the **default** of a parent field by re-declaring it::
 Composition
 -----------
 
-Multiple configs can be combined into a single parent - either as
-**nested sub-objects** (the default) or **flat-merged** into one namespace.
-The short form is just one line::
+Multiple configs can be combined into a single parent using ``components=``::
 
-    from cfx import Config, Int, String
+    from cfx import Config, Field
 
     class FormatConfig(Config):
         """Output formatting settings."""
         confid = "format"
-        precision = Int(6, "Decimal places in numeric output")
-        encoding = String("utf-8", "Output file encoding")
+        precision: int = Field(6, "Decimal places in numeric output")
+        encoding: str = Field("utf-8", "Output file encoding")
 
     class PipelineConfig(Config, components=[ProcessingConfig, FormatConfig]):
         """Groups processing and formatting as nested sub-configs."""
@@ -107,6 +105,6 @@ The short form is just one line::
     cfg.processing.iterations = 500
     cfg.format.precision = 3
 
-Each sub-config is fully independent - ``cfg.processing`` and ``cfg.format``
+Each sub-config is fully independent — ``cfg.processing`` and ``cfg.format``
 are separate objects with their own field values.  See :doc:`composition` for
 flat merging, serialization, and all other composition options.

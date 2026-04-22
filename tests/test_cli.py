@@ -76,9 +76,7 @@ class OutputConfig(Config):
     compress = Bool(False, "Compress output")
 
 
-class PipelineConfig(
-    Config, components=[SearchConfig, OutputConfig], method="nested"
-):
+class PipelineConfig(Config, components=[SearchConfig, OutputConfig]):
     """Nested pipeline config."""
 
     pass
@@ -89,16 +87,16 @@ class DeepInner(Config):
     value = Float(1.0, "inner value")
 
 
-class DeepMiddle(Config, components=[DeepInner], method="nested"):
+class DeepMiddle(Config, components=[DeepInner]):
     confid = "middle"
     y = Float(2.0, "middle y")
 
 
-class DeepOuter(Config, components=[DeepMiddle], method="nested"):
+class DeepOuter(Config, components=[DeepMiddle]):
     confid = "outer"
 
 
-class MixedCLI(Config, components=[DeepInner], method="nested"):
+class MixedCLI(Config, components=[DeepInner]):
     confid = "mixedcli"
     top_val = Float(99.0, "flat field on the nested container")
 

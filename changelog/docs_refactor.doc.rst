@@ -1,0 +1,1 @@
+``docs/`` refactored to split out Fields into 7 separate sections. Add `Fields`, `Field Modifiers` and `Custom Field` documents, expand the subsection in `Fields` to cover the type inferred and explicit fields.

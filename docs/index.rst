@@ -10,25 +10,25 @@ carries its own default, type checking, and documentation. Compose any set of
 configs into a larger one, nested or flat, and get serialization, CLI
 integration, and a self-documenting display for free::
 
-    from cfx import Config, Float, Int, String, Bool
+    from cfx import Config, Field
 
     class FormatConfig(Config):
         """Output formatting."""
         confid = "format"
-        precision = Int(6, "Decimal places")
-        encoding = String("utf-8", "Output encoding")
+        precision: int = Field(6, "Decimal places")
+        encoding: str = Field("utf-8", "Output encoding")
 
     class WorkerConfig(Config, components=[FormatConfig]):
         """Worker settings."""
         confid = "worker"
-        threads = Int(4, "Worker threads", minval=1)
-        timeout = Float(30.0, "Request timeout in seconds", minval=0.0)
+        threads: int = Field(4, "Worker threads", minval=1)
+        timeout: float = Field(30.0, "Request timeout in seconds", minval=0.0)
 
     class AppConfig(Config, components=[WorkerConfig]):
         """Application configuration."""
         confid = "app"
-        name = String("myapp", "Application name")
-        debug = Bool(False, "Enable debug output")
+        name: str = Field("myapp", "Application name")
+        debug: bool = Field(False, "Enable debug output")
 
     cfg = AppConfig()
     print(cfg)
@@ -78,9 +78,11 @@ integration, and a self-documenting display for free::
    using
    composition
    views
+   fields
+   field-modifiers
+   custom-fields
    serialization
    cli
-   fields
    sharp-edges
    advanced
 

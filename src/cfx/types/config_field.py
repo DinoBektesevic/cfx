@@ -8,7 +8,7 @@ directly on `Config` class definitions. Subclass `ConfigField` and override
 
 import os
 
-from .refs import FieldRef
+from ..refs import FieldRef
 
 __all__ = ["ConfigField"]
 

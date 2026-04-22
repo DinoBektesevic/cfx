@@ -25,6 +25,7 @@ docs = [
     "sphinx-autoapi",
     "numpydoc",
     "furo",
+    "myst-parser",
 ]
 dev = ["cfx[test,docs]", "ruff", "towncrier"]
 

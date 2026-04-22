@@ -7,8 +7,6 @@ their own.
 
 Public API
 ----------
-Alias
-    Descriptor that maps a view attribute to a dotpath on the bound config.
 ConfigView
     Base class for hand-written curated projections.
 AliasedView
@@ -19,118 +17,11 @@ FlatView
 
 from typing import ClassVar
 
-from .refs import ComponentRef, FieldRef
+from .refs import ComponentRef
+from .types import Alias
+from .utils import walk, walk_set
 
-__all__ = ["Alias", "AliasedView", "ConfigView", "FlatView", "Mirror"]
-
-
-#############################################################################
-# Path-walking helpers
-#############################################################################
-
-
-def _walk(root, path: str):
-    """Return the value at *path* starting from *root*."""
-    obj = root
-    for part in path.split("."):
-        obj = getattr(obj, part)
-    return obj
-
-
-def _walk_set(root, path: str, value):
-    """Set *value* at *path* starting from *root*."""
-    parts = path.split(".")
-    obj = root
-    for part in parts[:-1]:
-        obj = getattr(obj, part)
-    setattr(obj, parts[-1], value)
-
-
-#############################################################################
-# Alias descriptor
-#############################################################################
-
-
-class Alias:
-    """A view field that delegates reads and writes to a dotpath on the
-    bound config.
-
-    Declare `Alias` attributes on a `ConfigView` subclass to define which
-    fields of the underlying config are exposed and under what names.  The
-    argument is either a `FieldRef` obtained by class-level attribute access
-    on a `Config` class, or a plain dotpath string::
-
-        class CalibSummaryView(ConfigView):
-            psf_kernel = Alias(PSFFittingConfig.kernel_estimate)  # preferred
-            threshold  = Alias("detection.threshold")              # also works
-
-    Parameters
-    ----------
-    ref : `FieldRef` or `str`
-        Path to the target field on the bound config.  Pass a `FieldRef`
-        (from class-level attribute access on a `Config`) to keep the path
-        refactorable via IDE rename tools.  A plain dotpath string is
-        accepted for convenience.
-    """
-
-    def __init__(self, ref):
-        self._path = ref._path if isinstance(ref, FieldRef) else ref
-
-    def __set_name__(self, owner, name: str):
-        self.name = name
-
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return FieldRef(self.name, None)
-        return _walk(obj._alias_root, self._path)
-
-    def __set__(self, obj, value):
-        _walk_set(obj._alias_root, self._path, value)
-
-
-#############################################################################
-# Mirror descriptor
-#############################################################################
-
-
-class Mirror:
-    """A config field that keeps multiple dotpaths in sync.
-
-    Declare a ``Mirror`` on a ``Config`` class to enforce that two or more
-    fields always hold the same value.  A write fans out to every path; a
-    read asserts all paths agree and returns the shared value::
-
-        class SyncedConfig(Config, components=[CameraConfig, DetectorConfig]):
-            gain = Mirror(CameraConfig.gain, DetectorConfig.gain)
-
-    Parameters
-    ----------
-    *refs : `FieldRef` or `str`
-        Dotpaths (relative to the config instance) that must stay in sync.
-        Pass `FieldRef` objects obtained from class-level attribute access on
-        a ``Config`` for refactorable, IDE-navigable paths.
-    """
-
-    def __init__(self, *refs):
-        self._paths = [r._path if isinstance(r, FieldRef) else r for r in refs]
-
-    def __set_name__(self, owner, name: str):
-        self.name = name
-
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return FieldRef(self.name, None)
-        values = [_walk(obj, p) for p in self._paths]
-        if len(set(values)) > 1:
-            raise ValueError(
-                f"Mirror {self.name!r} paths disagree: "
-                f"{dict(zip(self._paths, values, strict=True))}"
-            )
-        return values[0]
-
-    def __set__(self, obj, value):
-        for p in self._paths:
-            _walk_set(obj, p, value)
+__all__ = ["ConfigView", "AliasedView", "FlatView"]
 
 
 #############################################################################
@@ -189,7 +80,7 @@ class ConfigView:
             Mapping of alias name to current value for every declared `Alias`.
         """
         return {
-            name: _walk(self._alias_root, a._path)
+            name: walk(self._alias_root, a._path)
             for name, a in type(self)._aliases.items()
         }
 
@@ -212,12 +103,12 @@ class ConfigView:
         view = cls(config)
         for k, v in d.items():
             if k in cls._aliases:
-                _walk_set(config, cls._aliases[k]._path, v)
+                walk_set(config, cls._aliases[k]._path, v)
         return view
 
     def __repr__(self):
         vals = {
-            name: _walk(self._alias_root, a._path)
+            name: walk(self._alias_root, a._path)
             for name, a in type(self)._aliases.items()
         }
         return f"{type(self).__name__}({vals!r})"
@@ -327,7 +218,7 @@ class AliasedView(ConfigView):
         view = cls()
         for k, v in d.items():
             if k in cls._aliases:
-                _walk_set(view, cls._aliases[k]._path, v)
+                walk_set(view, cls._aliases[k]._path, v)
         return view
 
 

@@ -1,7 +1,8 @@
-"""Typed configuration field descriptors.
+"""Typed configuration field descriptors and view field types.
 
-Each class in this module implements a `ConfigField` specializations and their
-validators; for practical reasons.
+Each concrete class here is a `ConfigField` specialization.  `Alias` and
+`Mirror` are descriptor classes declared on views or configs to wire fields
+together.
 """
 
 import contextlib
@@ -10,9 +11,12 @@ import json
 import numbers
 import pathlib
 
+from ..refs import FieldRef
+from ..utils import walk, walk_set
 from .config_field import ConfigField
 
 __all__ = [
+    "ConfigField",
     "Any",
     "String",
     "Int",
@@ -29,6 +33,8 @@ __all__ = [
     "Date",
     "Time",
     "DateTime",
+    "Alias",
+    "Mirror",
 ]
 
 
@@ -942,3 +948,90 @@ class DateTime(ConfigField):
             raise TypeError(
                 f"Expected a datetime.datetime, got {type(value).__name__!r}"
             )
+
+
+#############################################################################
+# Alias descriptor
+#############################################################################
+
+
+class Alias:
+    """A view field that delegates reads and writes to a dotpath on the
+    bound config.
+
+    Declare `Alias` attributes on a `ConfigView` subclass to define which
+    fields of the underlying config are exposed and under what names.  The
+    argument is either a `FieldRef` obtained by class-level attribute access
+    on a `Config` class, or a plain dotpath string::
+
+        class CalibSummaryView(ConfigView):
+            psf_kernel = Alias(PSFFittingConfig.kernel_estimate)  # preferred
+            threshold  = Alias("detection.threshold")              # also works
+
+    Parameters
+    ----------
+    ref : `FieldRef` or `str`
+        Path to the target field on the bound config.  Pass a `FieldRef`
+        (from class-level attribute access on a `Config`) to keep the path
+        refactorable via IDE rename tools.  A plain dotpath string is
+        accepted for convenience.
+    """
+
+    def __init__(self, ref):
+        self._path = ref._path if isinstance(ref, FieldRef) else ref
+
+    def __set_name__(self, owner, name: str):
+        self.name = name
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return FieldRef(self.name, None)
+        return walk(obj._alias_root, self._path)
+
+    def __set__(self, obj, value):
+        walk_set(obj._alias_root, self._path, value)
+
+
+#############################################################################
+# Mirror descriptor
+#############################################################################
+
+
+class Mirror:
+    """A config field that keeps multiple dotpaths in sync.
+
+    Declare a ``Mirror`` on a ``Config`` class to enforce that two or more
+    fields always hold the same value.  A write fans out to every path; a
+    read asserts all paths agree and returns the shared value::
+
+        class SyncedConfig(Config, components=[CameraConfig, DetectorConfig]):
+            gain = Mirror(CameraConfig.gain, DetectorConfig.gain)
+
+    Parameters
+    ----------
+    *refs : `FieldRef` or `str`
+        Dotpaths (relative to the config instance) that must stay in sync.
+        Pass `FieldRef` objects obtained from class-level attribute access on
+        a ``Config`` for refactorable, IDE-navigable paths.
+    """
+
+    def __init__(self, *refs):
+        self._paths = [r._path if isinstance(r, FieldRef) else r for r in refs]
+
+    def __set_name__(self, owner, name: str):
+        self.name = name
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return FieldRef(self.name, None)
+        values = [walk(obj, p) for p in self._paths]
+        if len(set(values)) > 1:
+            raise ValueError(
+                f"Mirror {self.name!r} paths disagree: "
+                f"{dict(zip(self._paths, values, strict=True))}"
+            )
+        return values[0]
+
+    def __set__(self, obj, value):
+        for p in self._paths:
+            walk_set(obj, p, value)

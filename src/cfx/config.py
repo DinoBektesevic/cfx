@@ -33,9 +33,13 @@ except ImportError:
     except ImportError:
         tomllib = None
 
+import typing
+import warnings
+
 from .cli import _CLI_UNSET, field_to_argparse_kwargs, field_to_click_option
-from .config_field import ConfigField
 from .refs import ComponentRef
+from .types import ConfigField, FieldSpec, resolve_field_spec
+from .utils import strip_none
 
 __all__ = ["Config", "FrozenConfigError"]
 
@@ -103,15 +107,8 @@ class Config:
     _nested_classes: ClassVar[dict[str, type]] = {}
     """Mapping of confid to component Config class."""
 
-    def __init_subclass__(cls, components=None, method=None, **kwargs):
+    def __init_subclass__(cls, components=None, **kwargs):
         super().__init_subclass__(**kwargs)
-
-        if method == "unroll":
-            raise TypeError(
-                "method='unroll' has been removed. "
-                "Use nested composition (the default when components= is "
-                "provided) instead."
-            )
 
         if "confid" not in vars(cls):
             cls.confid = cls.__name__.lower()
@@ -119,6 +116,24 @@ class Config:
         own_fields = {
             k: v for k, v in vars(cls).items() if isinstance(v, ConfigField)
         }
+
+        # Resolve annotation-native Field() declarations
+        try:
+            hints = typing.get_type_hints(cls)
+        except Exception:
+            hints = getattr(cls, "__annotations__", {})
+        for attr_name, value in list(vars(cls).items()):
+            if isinstance(value, FieldSpec):
+                hint = hints.get(attr_name)
+                if hint is None:
+                    raise TypeError(
+                        f"{cls.__name__}.{attr_name}: "
+                        "Field() requires a type annotation"
+                    )
+                descriptor = resolve_field_spec(attr_name, value, hint)
+                descriptor.__set_name__(cls, attr_name)
+                setattr(cls, attr_name, descriptor)
+                own_fields[attr_name] = descriptor
 
         if components is not None:
             seen: set[str] = set()
@@ -401,15 +416,6 @@ class Config:
     #                    Serialization
     ###########################################################################
     @staticmethod
-    def _strip_none(d):
-        """Recursively remove None values from a dict."""
-        return {
-            k: (Config._strip_none(v) if isinstance(v, dict) else v)
-            for k, v in d.items()
-            if v is not None
-        }
-
-    @staticmethod
     def _serialize_value(v):
         """Convert a field value to a plain, serializer-safe Python object.
 
@@ -464,9 +470,26 @@ class Config:
             If ``strict`` is `True` and ``mapping`` contains an undeclared
             field name.
         """
+        stored_ver = mapping.get("_version")
+        cls_ver = vars(cls).get("_version")
+        version_mismatch = (
+            stored_ver is not None
+            and cls_ver is not None
+            and stored_ver != cls_ver
+        )
+        if version_mismatch:
+            warnings.warn(
+                f"Loading {cls.__name__!r} from schema version "
+                f"{stored_ver!r}, but class declares version {cls_ver!r}.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         nested_classes = cls._nested_classes
         instance = cls()
         for k, v in mapping.items():
+            if k == "_version":
+                continue
             if k in nested_classes:
                 continue
             if k not in cls._fields:
@@ -506,6 +529,8 @@ class Config:
             result[k] = self._serialize_value(getattr(self, k))
         for confid in nested_classes:
             result[confid] = getattr(self, confid).to_dict()
+        if "_version" in vars(type(self)):
+            result["_version"] = type(self)._version
         return result
 
     @classmethod
@@ -613,7 +638,7 @@ class Config:
         # needs to persist values/collections and whatnot, I'm hoping this is
         # never an actual problem and that fields that need None's as defaults
         # just default to None's. But I guess we'll see.
-        return tomli_w.dumps(self._strip_none(self.to_dict()))
+        return tomli_w.dumps(strip_none(self.to_dict()))
 
     ###########################################################################
     #                    CLI

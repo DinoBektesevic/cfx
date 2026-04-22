@@ -22,25 +22,25 @@ configs into a larger one, nested or flat, and get serialization, CLI
 integration, and a self-documenting display for free.
 
 ```python
-from cfx import Config, Float, Int, String, Bool
+from cfx import Config, Field
 
 class FormatConfig(Config):
     """Output formatting."""
     confid = "format"
-    precision = Int(6, "Decimal places")
-    encoding = String("utf-8", "Output encoding")
+    precision: int = Field(6, "Decimal places")
+    encoding: str = Field("utf-8", "Output encoding")
 
 class WorkerConfig(Config, components=[FormatConfig]):
     """Worker settings."""
     confid = "worker"
-    threads = Int(4, "Worker threads", minval=1)
-    timeout = Float(30.0, "Request timeout in seconds", minval=0.0)
+    threads: int = Field(4, "Worker threads", minval=1)
+    timeout: float = Field(30.0, "Request timeout in seconds", minval=0.0)
 
 class AppConfig(Config, components=[WorkerConfig]):
     """Application configuration."""
     confid = "app"
-    name = String("myapp", "Application name")
-    debug = Bool(False, "Enable debug output")
+    name: str = Field("myapp", "Application name")
+    debug: bool = Field(False, "Enable debug output")
 
 cfg = AppConfig()
 print(cfg)
@@ -87,15 +87,16 @@ pip install "cfx[all]"    # everything
 ## Quick start
 
 ```python
-from cfx import Config, Int, Float, String, Options, Bool
+from cfx import Config, Field
+from typing import Literal
 
 class ProcessingConfig(Config):
     confid = "processing"
-    iterations = Int(100, "Number of iterations", minval=1)
-    threshold = Float(0.5, "Acceptance threshold", minval=0.0, maxval=1.0)
-    label = String("run_01", "Human-readable run label")
-    mode = Options(("fast", "balanced", "thorough"), "Processing mode")
-    verbose = Bool(False, "Enable verbose logging")
+    iterations: int = Field(100, "Number of iterations", minval=1)
+    threshold: float = Field(0.5, "Acceptance threshold", minval=0.0, maxval=1.0)
+    label: str = Field("run_01", "Human-readable run label")
+    mode: Literal["fast", "balanced", "thorough"] = Field("fast", "Processing mode")
+    verbose: bool = Field(False, "Enable verbose logging")
 
 cfg = ProcessingConfig()
 
@@ -115,23 +116,41 @@ modified = cfg.copy(iterations=500)
 cfg.diff(modified)   # {'iterations': (200, 500)}
 ```
 
+For custom field types not expressible via annotations (custom validation,
+angular ranges, unit normalization), import explicit types from `cfx.types`:
+
+```python
+from cfx.types import Float, ConfigField
+
+class Angle(ConfigField):
+    def validate(self, value):
+        if not isinstance(value, (int, float)):
+            raise TypeError(f"Expected a number, got {type(value).__name__!r}")
+
+    def __set__(self, obj, value):
+        if self.static:
+            raise AttributeError("Cannot set a static config field.")
+        self.validate(value)
+        setattr(obj, self.private_name, float(value) % 360.0)
+```
+
 ### Views
 
 Project any config tree into a custom namespace — useful when the internal
 structure is more complex than what a consumer needs to see:
 
 ```python
-from cfx import Config, Int, Float, String, ConfigView, Alias, AliasedView
+from cfx import Config, Field, ConfigView, Alias, AliasedView
 
 class ProcessingConfig(Config):
     confid = "processing"
-    iterations = Int(100, "Number of iterations")
-    threshold = Float(0.5, "Acceptance threshold")
+    iterations: int = Field(100, "Number of iterations")
+    threshold: float = Field(0.5, "Acceptance threshold")
 
 class FormatConfig(Config):
     confid = "format"
-    precision = Int(6, "Decimal places")
-    encoding = String("utf-8", "Output encoding")
+    precision: int = Field(6, "Decimal places")
+    encoding: str = Field("utf-8", "Output encoding")
 
 class PipelineConfig(Config, components=[ProcessingConfig, FormatConfig]):
     confid = "pipeline"
@@ -162,9 +181,11 @@ Back any field with an environment variable — the value is read lazily, so
 the same class works across environments without subclassing:
 
 ```python
+from cfx import Config, Field
+
 class ServiceConfig(Config):
-    host = String("localhost", "Database host", env="DB_HOST")
-    port = Int(5432, "Port", env="DB_PORT")
+    host: str = Field("localhost", "Database host", env="DB_HOST")
+    port: int = Field(5432, "Port", env="DB_PORT")
 
 # DB_HOST=prod.example.com python run.py
 cfg = ServiceConfig()

@@ -19,6 +19,7 @@ _PYPI_ICON = (_static / "pypi.svg").read_text()
 
 extensions = [
     "autoapi.extension",
+    "myst_parser",
     "numpydoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",

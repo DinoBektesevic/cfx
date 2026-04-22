@@ -82,7 +82,8 @@ class IndependentConfig(Config):
 
 
 class NestedConfig(
-    Config, components=[IndependentConfig, GrandchildConfig], method="nested"
+    Config,
+    components=[IndependentConfig, GrandchildConfig],
 ):
     """IndependentConfig and GrandchildConfig nested under their confids."""
 
@@ -94,16 +95,16 @@ class DeepInnerConfig(Config):
     x = Float(1.0, "inner x")
 
 
-class DeepMiddleConfig(Config, components=[DeepInnerConfig], method="nested"):
+class DeepMiddleConfig(Config, components=[DeepInnerConfig]):
     confid = "middle"
     y = Float(2.0, "middle y")
 
 
-class DeepOuterConfig(Config, components=[DeepMiddleConfig], method="nested"):
+class DeepOuterConfig(Config, components=[DeepMiddleConfig]):
     confid = "outer"
 
 
-class MixedConfig(Config, components=[DeepInnerConfig], method="nested"):
+class MixedConfig(Config, components=[DeepInnerConfig]):
     confid = "mixed"
     top_field = Float(99.0, "field on the nested container itself")
 
