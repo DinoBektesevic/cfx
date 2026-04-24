@@ -20,9 +20,9 @@ except ImportError:
 import typing
 import warnings
 
-from .cli import _CLI_UNSET
 from .refs import ComponentRef
 from .types import ConfigField, FieldSpec, resolve_field_spec
+from .utils import _CLI_UNSET
 
 __all__ = ["Config", "FrozenConfigError"]
 

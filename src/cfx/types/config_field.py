@@ -15,15 +15,9 @@ except ImportError:
     _click = None
 
 from ..refs import FieldRef
+from ..utils import _CLI_UNSET
 
-__all__ = ["ConfigField", "_CLI_UNSET"]
-
-# Sentinel for "this CLI argument was not supplied by the user."
-# Using None is wrong because some fields (Seed, Any) legitimately accept None
-# as a value. _CLI_UNSET lets _apply_params distinguish "not provided" from
-# "explicitly provided as None". Defined here (not cli.py) so that
-# ConfigField.to_argparse_kwargs can reference it without a circular import.
-_CLI_UNSET = object()
+__all__ = ["ConfigField"]
 
 T = TypeVar("T")
 
