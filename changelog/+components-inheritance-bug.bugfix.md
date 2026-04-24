@@ -1,1 +1,0 @@
-Fixed a bug where using `components=` on a subclass silently discarded all fields inherited from the parent class. A `Config` subclass that both inherits from a parent and declares `components=[...]` now correctly includes all inherited fields alongside the new nested sub-configs.

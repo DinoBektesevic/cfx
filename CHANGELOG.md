@@ -1,3 +1,25 @@
+# cfx 0.7.0 (2026-04-23)
+
+## Features
+
+- Added `is_set()`, `unset()`, and `reset()` public API to `ConfigField`. `is_set(obj)` returns `True` when the field has an explicit value stored on the instance (as opposed to using its callable default or env-var fallback). `unset(obj)` removes the stored value, reverting to the default. `reset(obj, value=None)` either unsets or sets a new value through the full normalize→validate pipeline.
+- Added `normalize()` / `validate()` separation to `ConfigField`. `normalize()` runs first (idempotent coercion to canonical form) and `validate()` runs after. Built-in types that previously coerced in `__set__` or `__init__` now implement `normalize()`: `MultiOptions` (list/tuple → set), `Path` (str → `pathlib.Path`), `Range` (list → tuple), `List` (tuple → list), `Date`/`Time`/`DateTime` (ISO string → datetime object).
+- Added field-owned CLI: `to_argparse_kwargs()` and `to_click_option()` methods on `ConfigField` replace the monolithic dispatch tables in `cli.py`. Each field type owns its argparse/click representation. `Bool` uses `BooleanOptionalAction` and click flag pairs; `Options` adds `choices`; `MultiOptions` uses `nargs="+"` and `multiple=True`; `Seed`, `Range`, `Path`, `Dict`, `Date`, `Time`, `DateTime` each supply an appropriate `metavar`.
+- Added field-owned serialization: `serialize()` and `deserialize()` methods on `ConfigField` replace the monolithic `Config._serialize_value()`. Each field type encodes its own on-disk form. `Path` serializes as a string, `MultiOptions` as a sorted list, `Range` as a list, `Date`/`Time`/`DateTime` as ISO strings. The base implementation is an identity pass-through.
+- Added runnable examples (`examples/`), rewrote `custom-fields` docs around the `normalize`/`validate` pattern, added `is_set`/`unset`/`reset` and `validate`-after-`update` sections to the using guide, fixed sharp-edges page, removed TOML references throughout, and wired up `--doctest-modules` so all inline doctests run as part of the test suite.
+- Rewrote fields and field-modifiers intro sections for clarity: tradeoff-oriented framing for declaration styles and modifiers, fixed all broken RST cross-references, added `transient=` modifier documentation, moved modifier rough-edges content from fields.rst to field-modifiers.rst where it belongs. Also fixed remaining TOML references in cli.rst, capitalised normalize/validate section heading in custom-fields.rst, added idempotency link to sharp-edges, clarified that `validate()` is on the Config class in advanced.rst, and wired doctest runs into CI.
+
+## Bug Fixes
+
+- Fixed `Config.validate()` not being called after `Config.update()`. Cross-field invariants defined in `validate()` are now enforced on programmatic updates, not only on deserialization.
+- Fixed a bug where using `components=` on a subclass silently discarded all fields inherited from the parent class. A `Config` subclass that both inherits from a parent and declares `components=[...]` now correctly includes all inherited fields alongside the new nested sub-configs.
+- Path fields now serialize using forward slashes on all platforms. Previously, `str(pathlib.Path(...))` produced backslashes on Windows, breaking cross-platform round-trips when a config was saved on Windows and loaded on Linux or macOS.
+
+## Removals
+
+- Removed TOML serialization support (`from_toml()`, `to_toml()`, and the `toml` optional dependency). TOML cannot represent `None` natively, causing silent data loss for `Seed(None)` and similar fields on round-trip. Use YAML for serialization instead.
+
+
 # cfx 0.6.0 (2026-04-21)
 
 ## Features

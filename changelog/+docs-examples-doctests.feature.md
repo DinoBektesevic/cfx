@@ -1,1 +1,0 @@
-Added runnable examples (`examples/`), rewrote `custom-fields` docs around the `normalize`/`validate` pattern, added `is_set`/`unset`/`reset` and `validate`-after-`update` sections to the using guide, fixed sharp-edges page, removed TOML references throughout, and wired up `--doctest-modules` so all inline doctests run as part of the test suite.
